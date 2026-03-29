@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdint.h>
+
 namespace AppConfig {
     constexpr float ADC_VREF = 3.3f;
     constexpr float ADC_RANGE = 4095.0f;
