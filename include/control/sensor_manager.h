@@ -43,6 +43,7 @@ private:
     enum class ReadMode {
         IDLE,
         TDS_READ,
+        PH_QUIET,
         PH_READ,
         CALIBRATION
     };

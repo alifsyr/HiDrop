@@ -12,7 +12,7 @@ SensorManager::SensorManager(
       _calibrationMode(false),
       _temperatureC(defaultTemperatureC),
       _phVoltage(0.0f),
-      _phValue(0.0f),
+      _phValue(7.0f),
       _tdsValue(0.0f),
       _lastTdsUpdateMs(0),
       _lastPhUpdateMs(0),
@@ -23,6 +23,10 @@ void SensorManager::begin() {
     _tdsSensor.begin();
     _phSensor.begin();
     _tempSensor.begin();
+
+    _phVoltage = _phSensor.readVoltage();
+    _phValue = _phSensor.convertVoltageToPh(_phVoltage);
+    _lastPhUpdateMs = millis();
 }
 
 void SensorManager::handleCalibrationSerial() {
@@ -67,11 +71,21 @@ void SensorManager::update() {
         return;
     }
 
-    const bool quietWindowDone = (now - _lastTdsReadMs) >= AppConfig::PH_QUIET_AFTER_TDS_MS;
-    if (quietWindowDone && (now - _lastPhUpdateMs >= AppConfig::PH_UPDATE_INTERVAL_MS)) {
+    const unsigned long sinceTds = now - _lastTdsReadMs;
+    const bool quietWindowDone = sinceTds >= AppConfig::PH_QUIET_AFTER_TDS_MS;
+
+    if (!quietWindowDone) {
+        _mode = ReadMode::PH_QUIET;
+        return;
+    }
+
+    if (now - _lastPhUpdateMs >= AppConfig::PH_UPDATE_INTERVAL_MS) {
         _mode = ReadMode::PH_READ;
         _phVoltage = _phSensor.readVoltage();
-        _phValue = _phSensor.convertVoltageToPh(_phVoltage);
+        float ph = _phSensor.convertVoltageToPh(_phVoltage);
+        if (ph < 0.0f) ph = 0.0f;
+        if (ph > 14.0f) ph = 14.0f;
+        _phValue = ph;
         _lastPhUpdateMs = now;
         return;
     }
@@ -104,6 +118,8 @@ const char *SensorManager::getMode() const {
     switch (_mode) {
         case ReadMode::TDS_READ:
             return "READING TDS";
+        case ReadMode::PH_QUIET:
+            return "QUIET BEFORE PH";
         case ReadMode::PH_READ:
             return "READING PH";
         case ReadMode::CALIBRATION:
