@@ -1,10 +1,14 @@
 #include <Arduino.h>
 #include <EEPROM.h>
-#include "config/pins.h"
+#include <Wire.h>
+
 #include "config/app_config.h"
+#include "config/pins.h"
 #include "control/sensor_manager.h"
-#include "sensors/tds_sensor.h"
+#include "display/lcd_display.h"
 #include "sensors/ph_sensor.h"
+#include "sensors/tds_sensor.h"
+#include "sensors/temp_sensor.h"
 
 TdsSensor tdsSensor(
     Pins::TDS_SENSOR,
@@ -22,7 +26,14 @@ PhSensor phSensor(
     AppConfig::PH_CALIBRATION_VALUE
 );
 
-SensorManager sensorManager(tdsSensor, phSensor, AppConfig::DEFAULT_WATER_TEMPERATURE_C);
+TempSensor tempSensor(Pins::TEMP_SENSOR, AppConfig::DEFAULT_WATER_TEMPERATURE_C);
+SensorManager sensorManager(tdsSensor, phSensor, tempSensor, AppConfig::DEFAULT_WATER_TEMPERATURE_C);
+
+LcdDisplay lcdDisplay(
+    AppConfig::LCD_I2C_ADDRESS,
+    AppConfig::LCD_COLUMNS,
+    AppConfig::LCD_ROWS
+);
 
 void setup() {
     Serial.begin(115200);
@@ -30,7 +41,11 @@ void setup() {
 
     EEPROM.begin(64);
 
+    Wire.begin(Pins::I2C_SDA, Pins::I2C_SCL);
+
     sensorManager.begin();
+    lcdDisplay.begin();
+
     Serial.println();
 }
 
@@ -38,25 +53,25 @@ void loop() {
     sensorManager.handleCalibrationSerial();
     sensorManager.update();
 
-    if (sensorManager.isCalibrationMode()) {
-        delay(20);
-        return;
-    }
-
     static unsigned long lastPrintMs = 0;
-    unsigned long now = millis();
+    static unsigned long lastLcdMs = 0;
+    const unsigned long now = millis();
 
-    if (now - lastPrintMs >= AppConfig::SENSOR_PRINT_INTERVAL_MS) {
+    if (!sensorManager.isCalibrationMode() && (now - lastPrintMs >= AppConfig::SENSOR_PRINT_INTERVAL_MS)) {
         lastPrintMs = now;
 
-        SensorData data = sensorManager.getTdsData();
-        float phValue = sensorManager.getPh();
+        SensorData data = sensorManager.getSensorData();
 
         Serial.print("Temp: ");
         Serial.print(data.temperatureC, 2);
         Serial.print(" C | TDS: ");
         Serial.print(data.tds, 0);
         Serial.print(" ppm | pH: ");
-        Serial.println(phValue, 2);
+        Serial.println(data.phValue, 2);
+    }
+
+    if (now - lastLcdMs >= AppConfig::LCD_REFRESH_INTERVAL_MS) {
+        lastLcdMs = now;
+        lcdDisplay.show(sensorManager.getSensorData(), sensorManager.getMode());
     }
 }

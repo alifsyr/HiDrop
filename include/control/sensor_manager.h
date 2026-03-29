@@ -20,9 +20,10 @@ public:
     void update();
 
     bool isCalibrationMode() const;
-    SensorData getTdsData() const;
+    SensorData getSensorData() const;
     float getPh() const;
     float getTemperatureC() const;
+    const char *getMode() const;
 
 private:
     TdsSensor &_tdsSensor;
@@ -31,4 +32,20 @@ private:
 
     bool _calibrationMode;
     float _temperatureC;
+    float _phVoltage;
+    float _phValue;
+    float _tdsValue;
+
+    unsigned long _lastTdsUpdateMs;
+    unsigned long _lastPhUpdateMs;
+    unsigned long _lastTdsReadMs;
+
+    enum class ReadMode {
+        IDLE,
+        TDS_READ,
+        PH_QUIET,
+        PH_READ,
+        CALIBRATION
+    };
+    ReadMode _mode;
 };

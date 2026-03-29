@@ -15,7 +15,7 @@ void PhSensor::begin() {
 }
 
 int PhSensor::getMedianAverageRaw() {
-    int buffer[20]; // cukup untuk sample count kecil seperti 10
+    int buffer[20];
 
     if (_sampleCount > 20) {
         return analogRead(_pin);
@@ -37,8 +37,6 @@ int PhSensor::getMedianAverageRaw() {
     }
 
     unsigned long sum = 0;
-
-    // Untuk 10 sampel: ambil index 2..7 seperti referensi Anda
     int start = 2;
     int end = _sampleCount - 2;
 
@@ -59,7 +57,11 @@ float PhSensor::readVoltage() {
     return avgRaw * (_vref / _adcRange);
 }
 
+float PhSensor::convertVoltageToPh(float voltage) const {
+    return (_slope * voltage) + _calibrationValue;
+}
+
 float PhSensor::readPh() {
     float volt = readVoltage();
-    return (_slope * volt) + _calibrationValue;
+    return convertVoltageToPh(volt);
 }
