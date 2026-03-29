@@ -10,7 +10,14 @@ SensorManager::SensorManager(
       _phSensor(phSensor),
       _tempSensor(tempSensor),
       _calibrationMode(false),
-      _temperatureC(defaultTemperatureC) {}
+      _temperatureC(defaultTemperatureC),
+      _phVoltage(0.0f),
+      _phValue(0.0f),
+      _tdsValue(0.0f),
+      _lastTdsUpdateMs(0),
+      _lastPhUpdateMs(0),
+      _lastTdsReadMs(0),
+      _mode(ReadMode::IDLE) {}
 
 void SensorManager::begin() {
     _tdsSensor.begin();
@@ -29,12 +36,14 @@ void SensorManager::handleCalibrationSerial() {
 
     if (cmd == "ENTER") {
         _calibrationMode = true;
+        _mode = ReadMode::CALIBRATION;
     }
 
     _tdsSensor.calibrate(cmd.c_str());
 
     if (cmd == "EXIT") {
         _calibrationMode = false;
+        _mode = ReadMode::IDLE;
     }
 }
 
@@ -42,21 +51,65 @@ void SensorManager::update() {
     _tempSensor.update();
     _temperatureC = _tempSensor.getTemperatureC();
 
-    _tdsSensor.update(_temperatureC);
+    if (_calibrationMode) {
+        _mode = ReadMode::CALIBRATION;
+        return;
+    }
+
+    const unsigned long now = millis();
+
+    if (now - _lastTdsUpdateMs >= AppConfig::TDS_UPDATE_INTERVAL_MS) {
+        _mode = ReadMode::TDS_READ;
+        _tdsSensor.update(_temperatureC);
+        _tdsValue = _tdsSensor.getTds();
+        _lastTdsUpdateMs = now;
+        _lastTdsReadMs = now;
+        return;
+    }
+
+    const bool quietWindowDone = (now - _lastTdsReadMs) >= AppConfig::PH_QUIET_AFTER_TDS_MS;
+    if (quietWindowDone && (now - _lastPhUpdateMs >= AppConfig::PH_UPDATE_INTERVAL_MS)) {
+        _mode = ReadMode::PH_READ;
+        _phVoltage = _phSensor.readVoltage();
+        _phValue = _phSensor.convertVoltageToPh(_phVoltage);
+        _lastPhUpdateMs = now;
+        return;
+    }
+
+    _mode = ReadMode::IDLE;
 }
 
 bool SensorManager::isCalibrationMode() const {
     return _calibrationMode;
 }
 
-SensorData SensorManager::getTdsData() const {
-    return _tdsSensor.getData(_temperatureC);
+SensorData SensorManager::getSensorData() const {
+    SensorData data;
+    data.temperatureC = _temperatureC;
+    data.tds = _tdsValue;
+    data.phVoltage = _phVoltage;
+    data.phValue = _phValue;
+    return data;
 }
 
 float SensorManager::getPh() const {
-    return _phSensor.readPh();
+    return _phValue;
 }
 
 float SensorManager::getTemperatureC() const {
     return _temperatureC;
+}
+
+const char *SensorManager::getMode() const {
+    switch (_mode) {
+        case ReadMode::TDS_READ:
+            return "READING TDS";
+        case ReadMode::PH_READ:
+            return "READING PH";
+        case ReadMode::CALIBRATION:
+            return "CALIBRATION";
+        case ReadMode::IDLE:
+        default:
+            return "MONITOR";
+    }
 }
