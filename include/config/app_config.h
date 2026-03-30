@@ -24,6 +24,35 @@ namespace AppConfig {
     constexpr unsigned long PH_UPDATE_INTERVAL_MS = 1500;
     constexpr unsigned long PH_QUIET_AFTER_TDS_MS = 500;
 
+    // Auto dosing target defaults (adult lettuce)
+    constexpr float DEFAULT_PH_TARGET_MIN = 5.8f;
+    constexpr float DEFAULT_PH_TARGET_MAX = 6.2f;
+    constexpr float DEFAULT_PPM_TARGET_MIN = 600.0f;
+    constexpr float DEFAULT_PPM_TARGET_MAX = 800.0f;
+
+    // Relay behavior
+    constexpr bool RELAY_ACTIVE_LOW = true;
+
+    // Pump calibration defaults
+    // Calibrate each pump on the real system before production use.
+    constexpr float NUTRI_A_FLOW_ML_PER_SEC = 0.25f;
+    constexpr float NUTRI_B_FLOW_ML_PER_SEC = 0.25f;
+    constexpr float PH_DOWN_FLOW_ML_PER_SEC = 0.25f;
+    constexpr float PH_UP_FLOW_ML_PER_SEC = 0.25f;
+
+    // Safe dosing step defaults
+    constexpr float NUTRI_A_DOSE_STEP_ML = 2.0f;
+    constexpr float NUTRI_B_DOSE_STEP_ML = 2.0f;
+    constexpr float PH_DOWN_DOSE_STEP_ML = 0.5f;
+    constexpr float PH_UP_DOSE_STEP_ML = 0.5f;
+
+    constexpr uint8_t MAX_NUTRIENT_DOSE_CYCLES = 4;
+    constexpr uint8_t MAX_PH_DOSE_CYCLES = 4;
+    constexpr unsigned long AUTODOSE_STARTUP_DELAY_MS = 60000;
+    constexpr unsigned long AUTODOSE_INTER_PUMP_DELAY_MS = 2000;
+    constexpr unsigned long AUTODOSE_RECHECK_DELAY_MS = 10UL * 60UL * 1000UL;
+    constexpr unsigned long AUTODOSE_EVENT_COOLDOWN_MS = 15UL * 60UL * 1000UL;
+
     // LCD 20x4 (I2C)
     constexpr uint8_t LCD_I2C_ADDRESS = 0x27;
     constexpr uint8_t LCD_COLUMNS = 20;
@@ -31,6 +60,7 @@ namespace AppConfig {
     constexpr unsigned long LCD_REFRESH_INTERVAL_MS = 300;
     constexpr unsigned long LCD_SCROLL_INTERVAL_MS = 300;
     constexpr unsigned long LCD_INIT_FINISH_DURATION_MS = 2000;
+    constexpr unsigned long LCD_TARGET_MESSAGE_DURATION_MS = 3000;
     constexpr uint8_t LCD_SCROLL_GAP_CHARS = 3;
 
     // Wi-Fi + NTP (WIB / UTC+7)
@@ -40,4 +70,11 @@ namespace AppConfig {
     constexpr char NTP_SERVER_SECONDARY[] = "time.nist.gov";
     constexpr long WIB_UTC_OFFSET_SECONDS = 7L * 60L * 60L;
     constexpr unsigned long WIFI_RECONNECT_INTERVAL_MS = 10000;
+
+    // Google Sheets logging
+    constexpr bool GOOGLE_SHEETS_LOGGING_ENABLED = false;
+    constexpr char GOOGLE_SHEETS_WEB_APP_URL[] = "";
+    constexpr char GOOGLE_SHEETS_SHARED_SECRET[] = "";
+    constexpr unsigned long GOOGLE_SHEETS_RETRY_INTERVAL_MS = 60000;
+    constexpr uint16_t GOOGLE_SHEETS_TIMEOUT_MS = 10000;
 }
