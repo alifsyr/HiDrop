@@ -2,8 +2,7 @@
 
 enum class DisplayMode {
     NORMAL,
-    PH_DOWN_CAL,
-    PH_UP_CAL,
-    NUTRI_A,
-    NUTRI_B
+    PH_DOWN_DOSE,
+    PH_UP_DOSE,
+    NUTRI_AB
 };

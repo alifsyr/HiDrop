@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <time.h>
 
+#include "models/display_mode.h"
 #include "models/dosing_report.h"
 #include "models/sensor_data.h"
 #include "models/target_ranges.h"
@@ -21,6 +22,7 @@ public:
     );
 
     bool isBusy() const;
+    DisplayMode getDisplayMode() const;
     bool consumeCompletedReport(DosingReport &report);
 
 private:
@@ -34,9 +36,7 @@ private:
 
     enum class State {
         IDLE,
-        DOSING_NUTRI_A,
-        PAUSE_BEFORE_NUTRI_B,
-        DOSING_NUTRI_B,
+        DOSING_NUTRIENTS,
         DOSING_PH_DOWN,
         DOSING_PH_UP,
         WAITING_RECHECK
@@ -57,8 +57,11 @@ private:
 
     Action chooseAction(const SensorData &data, const TargetRanges &targetRanges) const;
     unsigned long doseDurationMs(float ml, float flowMlPerSecond) const;
+    unsigned long nutrientDoseDurationMs() const;
+    float deliveredMlForDuration(float flowMlPerSecond, unsigned long durationMs) const;
     void startEvent(const SensorData &data, const struct tm *localTime, bool timeValid);
     void finalizeEvent(const SensorData &data, const char *reason);
+    void startNutrientDoseState(const char *label);
     void startRelayState(State nextState, uint8_t pin, float addedMl, const char *label);
     void stopAllRelays();
     void setRelay(uint8_t pin, bool active);

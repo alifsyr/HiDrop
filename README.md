@@ -32,8 +32,8 @@ Yang belum ada di repo ini:
 
 Catatan penting:
 
-- Mode seperti `PH DOWN CAL`, `PH UP CAL`, `NUTRI A`, dan `NUTRI B` saat ini adalah mode tampilan pada LCD.
-- Mode tersebut belum mengubah logika dosing atau aktuator.
+- Label seperti `PH DOWN DOSE`, `PH UP DOSE`, dan `NUTRI A+B` adalah indikator status auto dosing pada LCD.
+- Label mode di LCD mengikuti state auto dosing, bukan command manual.
 - Kalibrasi yang benar-benar diteruskan ke library saat ini adalah kalibrasi TDS melalui command serial.
 
 ## 2. Fitur Utama
@@ -343,43 +343,44 @@ Mode tampilan didefinisikan di `include/models/display_mode.h`.
 Daftar mode:
 
 - `NORMAL`
-- `PH_DOWN_CAL`
-- `PH_UP_CAL`
-- `NUTRI_A`
-- `NUTRI_B`
+- `PH_DOWN_DOSE`
+- `PH_UP_DOSE`
+- `NUTRI_AB`
 
-Mode ini memengaruhi label yang tampil pada LCD, misalnya:
+Mode ini dipakai sebagai indikator status auto dosing pada LCD, misalnya:
 
 - `Mode:NORMAL`
-- `Mode:PH ↓ CAL`
-- `Mode:PH ↑ CAL`
-- `Mode:NUTRI A`
-- `Mode:NUTRI B`
+- `Mode:PH ↓ DOSE`
+- `Mode:PH ↑ DOSE`
+- `Mode:NUTRI A+B`
+
+Perilakunya:
+
+- `NORMAL` saat auto dosing idle
+- `NUTRI A+B` saat pump nutrisi A dan B aktif bersamaan atau sistem masih dalam siklus koreksi nutrisi
+- `PH ↓ DOSE` saat pump pH down aktif atau sistem sedang menunggu recheck koreksi pH turun
+- `PH ↑ DOSE` saat pump pH up aktif atau sistem sedang menunggu recheck koreksi pH naik
 
 ## 13. Command Serial
 
-### 13.1 Mengubah Mode Tampilan
-
-Mode tampilan bisa diubah dari Serial Monitor.
+### 13.1 Target Range
 
 Command yang didukung:
 
-| Tujuan | Command yang diterima |
-| --- | --- |
-| Mode normal | `1`, `MODE1`, `NORMAL`, `MODE NORMAL` |
-| Mode pH down cal | `2`, `MODE2`, `PHDOWNCAL`, `PHBAWAHCAL` |
-| Mode pH up cal | `3`, `MODE3`, `PHUPCAL`, `PHATASCAL` |
-| Mode nutrisi A | `4`, `MODE4`, `NUTRIA` |
-| Mode nutrisi B | `5`, `MODE5`, `NUTRIB` |
+- `SET PH <min> <max>`
+- `SET PPM <min> <max>`
+- `SHOW TARGETS`
+- `RESET TARGETS`
 
-Catatan:
+Perilaku:
 
-- command tidak sensitif huruf besar/kecil
-- spasi, `_`, dan `-` diabaikan untuk parsing mode
+- target baru disimpan ke EEPROM
+- setiap perubahan target akan ditampilkan sementara pada LCD
+- `SHOW TARGETS` akan menampilkan target aktif di Serial Monitor dan LCD
 
 ### 13.2 Kalibrasi TDS
 
-Command serial yang bukan mode tampilan akan diteruskan ke modul kalibrasi TDS.
+Command serial yang tidak dikenali sebagai pengaturan target akan diteruskan ke modul kalibrasi TDS.
 
 Yang ditangani langsung oleh aplikasi:
 
@@ -500,4 +501,3 @@ Repo ini adalah fondasi sistem monitoring hidroponik berbasis ESP32 yang:
 - menjaga tampilan lokal tetap informatif
 - sinkron ke WIB lewat Wi-Fi
 - siap dikembangkan ke sistem kontrol hidroponik yang lebih lengkap
-

@@ -8,7 +8,6 @@
 #include "control/sensor_manager.h"
 #include "control/target_range_manager.h"
 #include "display/lcd_display.h"
-#include "models/display_mode.h"
 #include "models/dosing_report.h"
 #include "network/google_sheets_logger.h"
 #include "network/wifi_clock.h"
@@ -17,7 +16,6 @@
 #include "sensors/temp_sensor.h"
 
 namespace {
-DisplayMode currentDisplayMode = DisplayMode::NORMAL;
 bool wasWifiConnected = false;
 unsigned long initFinishStartMs = 0;
 unsigned long targetMessageUntilMs = 0;
@@ -25,64 +23,6 @@ String targetMessageLine1;
 String targetMessageLine2;
 String targetMessageLine3;
 String targetMessageLine4;
-
-String compactCommand(const String &command) {
-    String compact = command;
-    compact.trim();
-    compact.toUpperCase();
-    compact.replace(" ", "");
-    compact.replace("-", "");
-    compact.replace("_", "");
-    return compact;
-}
-
-const char *displayModeName(DisplayMode mode) {
-    switch (mode) {
-        case DisplayMode::PH_DOWN_CAL:
-            return "PH_DOWN_CAL";
-        case DisplayMode::PH_UP_CAL:
-            return "PH_UP_CAL";
-        case DisplayMode::NUTRI_A:
-            return "NUTRI_A";
-        case DisplayMode::NUTRI_B:
-            return "NUTRI_B";
-        case DisplayMode::NORMAL:
-        default:
-            return "NORMAL";
-    }
-}
-
-bool trySetDisplayMode(const String &command) {
-    const String compact = compactCommand(command);
-
-    if (compact == "1" || compact == "MODE1" || compact == "NORMAL" || compact == "MODENORMAL") {
-        currentDisplayMode = DisplayMode::NORMAL;
-    } else if (
-        compact == "2" || compact == "MODE2" || compact == "PHDOWNCAL" || compact == "MODEPHDOWNCAL" ||
-        compact == "PHBAWAHCAL" || compact == "MODEPHBAWAHCAL"
-    ) {
-        currentDisplayMode = DisplayMode::PH_DOWN_CAL;
-    } else if (
-        compact == "3" || compact == "MODE3" || compact == "PHUPCAL" || compact == "MODEPHUPCAL" ||
-        compact == "PHATASCAL" || compact == "MODEPHATASCAL"
-    ) {
-        currentDisplayMode = DisplayMode::PH_UP_CAL;
-    } else if (
-        compact == "4" || compact == "MODE4" || compact == "NUTRIA" || compact == "MODENUTRIA"
-    ) {
-        currentDisplayMode = DisplayMode::NUTRI_A;
-    } else if (
-        compact == "5" || compact == "MODE5" || compact == "NUTRIB" || compact == "MODENUTRIB"
-    ) {
-        currentDisplayMode = DisplayMode::NUTRI_B;
-    } else {
-        return false;
-    }
-
-    Serial.print("Display mode: ");
-    Serial.println(displayModeName(currentDisplayMode));
-    return true;
-}
 }
 
 TdsSensor tdsSensor(
@@ -137,7 +77,7 @@ void loop() {
         String command = Serial.readStringUntil('\n');
         command.trim();
 
-        if (command.length() > 0 && !targetRangeManager.handleCommand(command) && !trySetDisplayMode(command)) {
+        if (command.length() > 0 && !targetRangeManager.handleCommand(command)) {
             sensorManager.handleCalibrationCommand(command);
         }
     }
@@ -221,7 +161,7 @@ void loop() {
 
         lcdDisplay.show(
             currentData,
-            currentDisplayMode,
+            dosingController.getDisplayMode(),
             wifiConnected,
             timeValid ? &localTimeInfo : nullptr,
             timeValid
