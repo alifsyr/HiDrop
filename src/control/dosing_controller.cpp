@@ -218,6 +218,26 @@ DisplayMode DosingController::getDisplayMode() const {
     }
 }
 
+const char *DosingController::getStateLabel() const {
+    switch (_state) {
+        case State::DOSING_NUTRIENTS:
+            return "Dosing Nutrient A+B";
+
+        case State::DOSING_PH_DOWN:
+            return "Dosing pH Down";
+
+        case State::DOSING_PH_UP:
+            return "Dosing pH Up";
+
+        case State::WAITING_RECHECK:
+            return "Waiting for Recheck";
+
+        case State::IDLE:
+        default:
+            return "Monitoring";
+    }
+}
+
 bool DosingController::consumeCompletedReport(DosingReport &report) {
     if (!_hasCompletedReport) {
         return false;

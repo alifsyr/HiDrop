@@ -10,6 +10,7 @@
 #include "display/lcd_display.h"
 #include "models/dosing_report.h"
 #include "network/google_sheets_logger.h"
+#include "network/web_dashboard_server.h"
 #include "network/wifi_clock.h"
 #include "sensors/ph_sensor.h"
 #include "sensors/tds_sensor.h"
@@ -52,6 +53,7 @@ LcdDisplay lcdDisplay(
 WifiClock wifiClock(AppConfig::WIFI_SSID, AppConfig::WIFI_PASSWORD);
 DosingController dosingController;
 GoogleSheetsLogger sheetsLogger;
+WebDashboardServer webDashboardServer;
 TargetRangeManager targetRangeManager;
 
 void setup() {
@@ -68,6 +70,7 @@ void setup() {
     wifiClock.begin();
     dosingController.begin();
     sheetsLogger.begin();
+    webDashboardServer.begin();
 
     Serial.println();
 }
@@ -120,10 +123,24 @@ void loop() {
 
     DosingReport completedReport;
     if (dosingController.consumeCompletedReport(completedReport)) {
+        webDashboardServer.addCompletedReport(completedReport);
         sheetsLogger.queueReport(completedReport);
     }
 
     sheetsLogger.update(wifiConnected);
+    webDashboardServer.update(
+        currentData,
+        targetRangeManager.getRanges(),
+        sensorManager.getMode(),
+        sensorManager.isCalibrationMode(),
+        dosingController.getDisplayMode(),
+        dosingController.isBusy(),
+        dosingController.getStateLabel(),
+        wifiConnected,
+        timeValid ? &localTimeInfo : nullptr,
+        timeValid
+    );
+    webDashboardServer.handleClient();
 
     if (!sensorManager.isCalibrationMode() && (now - lastPrintMs >= AppConfig::SENSOR_PRINT_INTERVAL_MS)) {
         lastPrintMs = now;

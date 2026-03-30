@@ -23,6 +23,7 @@ public:
 
     bool isBusy() const;
     DisplayMode getDisplayMode() const;
+    const char *getStateLabel() const;
     bool consumeCompletedReport(DosingReport &report);
 
 private:
