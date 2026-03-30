@@ -2,6 +2,26 @@
 
 #include <stdint.h>
 
+#ifndef APP_WIFI_SSID
+#define APP_WIFI_SSID ""
+#endif
+
+#ifndef APP_WIFI_PASSWORD
+#define APP_WIFI_PASSWORD ""
+#endif
+
+#ifndef APP_GOOGLE_SHEETS_WEB_APP_URL
+#define APP_GOOGLE_SHEETS_WEB_APP_URL ""
+#endif
+
+#ifndef APP_GOOGLE_SHEETS_SHARED_SECRET
+#define APP_GOOGLE_SHEETS_SHARED_SECRET ""
+#endif
+
+#ifndef APP_GOOGLE_SHEETS_LOGGING_ENABLED
+#define APP_GOOGLE_SHEETS_LOGGING_ENABLED false
+#endif
+
 namespace AppConfig {
     constexpr float ADC_VREF = 3.3f;
     constexpr float ADC_RANGE = 4095.0f;
@@ -64,17 +84,17 @@ namespace AppConfig {
     constexpr uint8_t LCD_SCROLL_GAP_CHARS = 3;
 
     // Wi-Fi + NTP (WIB / UTC+7)
-    constexpr char WIFI_SSID[] = "Tabrin";
-    constexpr char WIFI_PASSWORD[] = "qawsed123";
+    constexpr char WIFI_SSID[] = APP_WIFI_SSID;
+    constexpr char WIFI_PASSWORD[] = APP_WIFI_PASSWORD;
     constexpr char NTP_SERVER_PRIMARY[] = "pool.ntp.org";
     constexpr char NTP_SERVER_SECONDARY[] = "time.nist.gov";
     constexpr long WIB_UTC_OFFSET_SECONDS = 7L * 60L * 60L;
     constexpr unsigned long WIFI_RECONNECT_INTERVAL_MS = 10000;
 
     // Google Sheets logging
-    constexpr bool GOOGLE_SHEETS_LOGGING_ENABLED = false;
-    constexpr char GOOGLE_SHEETS_WEB_APP_URL[] = "";
-    constexpr char GOOGLE_SHEETS_SHARED_SECRET[] = "";
+    constexpr bool GOOGLE_SHEETS_LOGGING_ENABLED = APP_GOOGLE_SHEETS_LOGGING_ENABLED;
+    constexpr char GOOGLE_SHEETS_WEB_APP_URL[] = APP_GOOGLE_SHEETS_WEB_APP_URL;
+    constexpr char GOOGLE_SHEETS_SHARED_SECRET[] = APP_GOOGLE_SHEETS_SHARED_SECRET;
     constexpr unsigned long GOOGLE_SHEETS_RETRY_INTERVAL_MS = 60000;
     constexpr uint16_t GOOGLE_SHEETS_TIMEOUT_MS = 10000;
 }
