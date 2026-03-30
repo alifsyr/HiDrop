@@ -16,7 +16,7 @@ public:
     );
 
     void begin();
-    void handleCalibrationSerial();
+    void handleCalibrationCommand(const String &cmd);
     void update();
 
     bool isCalibrationMode() const;

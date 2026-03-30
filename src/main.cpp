@@ -6,9 +6,75 @@
 #include "config/pins.h"
 #include "control/sensor_manager.h"
 #include "display/lcd_display.h"
+#include "models/display_mode.h"
+#include "network/wifi_clock.h"
 #include "sensors/ph_sensor.h"
 #include "sensors/tds_sensor.h"
 #include "sensors/temp_sensor.h"
+
+namespace {
+DisplayMode currentDisplayMode = DisplayMode::NORMAL;
+bool wasWifiConnected = false;
+unsigned long initFinishStartMs = 0;
+
+String compactCommand(const String &command) {
+    String compact = command;
+    compact.trim();
+    compact.toUpperCase();
+    compact.replace(" ", "");
+    compact.replace("-", "");
+    compact.replace("_", "");
+    return compact;
+}
+
+const char *displayModeName(DisplayMode mode) {
+    switch (mode) {
+        case DisplayMode::PH_DOWN_CAL:
+            return "PH_DOWN_CAL";
+        case DisplayMode::PH_UP_CAL:
+            return "PH_UP_CAL";
+        case DisplayMode::NUTRI_A:
+            return "NUTRI_A";
+        case DisplayMode::NUTRI_B:
+            return "NUTRI_B";
+        case DisplayMode::NORMAL:
+        default:
+            return "NORMAL";
+    }
+}
+
+bool trySetDisplayMode(const String &command) {
+    const String compact = compactCommand(command);
+
+    if (compact == "1" || compact == "MODE1" || compact == "NORMAL" || compact == "MODENORMAL") {
+        currentDisplayMode = DisplayMode::NORMAL;
+    } else if (
+        compact == "2" || compact == "MODE2" || compact == "PHDOWNCAL" || compact == "MODEPHDOWNCAL" ||
+        compact == "PHBAWAHCAL" || compact == "MODEPHBAWAHCAL"
+    ) {
+        currentDisplayMode = DisplayMode::PH_DOWN_CAL;
+    } else if (
+        compact == "3" || compact == "MODE3" || compact == "PHUPCAL" || compact == "MODEPHUPCAL" ||
+        compact == "PHATASCAL" || compact == "MODEPHATASCAL"
+    ) {
+        currentDisplayMode = DisplayMode::PH_UP_CAL;
+    } else if (
+        compact == "4" || compact == "MODE4" || compact == "NUTRIA" || compact == "MODENUTRIA"
+    ) {
+        currentDisplayMode = DisplayMode::NUTRI_A;
+    } else if (
+        compact == "5" || compact == "MODE5" || compact == "NUTRIB" || compact == "MODENUTRIB"
+    ) {
+        currentDisplayMode = DisplayMode::NUTRI_B;
+    } else {
+        return false;
+    }
+
+    Serial.print("Display mode: ");
+    Serial.println(displayModeName(currentDisplayMode));
+    return true;
+}
+}
 
 TdsSensor tdsSensor(
     Pins::TDS_SENSOR,
@@ -34,6 +100,7 @@ LcdDisplay lcdDisplay(
     AppConfig::LCD_COLUMNS,
     AppConfig::LCD_ROWS
 );
+WifiClock wifiClock(AppConfig::WIFI_SSID, AppConfig::WIFI_PASSWORD);
 
 void setup() {
     Serial.begin(115200);
@@ -45,17 +112,36 @@ void setup() {
 
     sensorManager.begin();
     lcdDisplay.begin();
+    wifiClock.begin();
 
     Serial.println();
 }
 
 void loop() {
-    sensorManager.handleCalibrationSerial();
+    if (Serial.available()) {
+        String command = Serial.readStringUntil('\n');
+        command.trim();
+
+        if (command.length() > 0 && !trySetDisplayMode(command)) {
+            sensorManager.handleCalibrationCommand(command);
+        }
+    }
+
     sensorManager.update();
+    wifiClock.update();
 
     static unsigned long lastPrintMs = 0;
     static unsigned long lastLcdMs = 0;
     const unsigned long now = millis();
+    const bool wifiConnected = wifiClock.isConnected();
+
+    if (!wifiConnected) {
+        wasWifiConnected = false;
+        initFinishStartMs = 0;
+    } else if (!wasWifiConnected) {
+        wasWifiConnected = true;
+        initFinishStartMs = now;
+    }
 
     if (!sensorManager.isCalibrationMode() && (now - lastPrintMs >= AppConfig::SENSOR_PRINT_INTERVAL_MS)) {
         lastPrintMs = now;
@@ -72,6 +158,26 @@ void loop() {
 
     if (now - lastLcdMs >= AppConfig::LCD_REFRESH_INTERVAL_MS) {
         lastLcdMs = now;
-        lcdDisplay.show(sensorManager.getSensorData(), sensorManager.getMode());
+
+        if (!wifiConnected) {
+            lcdDisplay.showInitializing();
+            return;
+        }
+
+        if (initFinishStartMs != 0 && (now - initFinishStartMs) < AppConfig::LCD_INIT_FINISH_DURATION_MS) {
+            lcdDisplay.showInitializingFinish();
+            return;
+        }
+
+        struct tm localTimeInfo = {};
+        const bool timeValid = wifiClock.getLocalTime(localTimeInfo);
+
+        lcdDisplay.show(
+            sensorManager.getSensorData(),
+            currentDisplayMode,
+            wifiConnected,
+            timeValid ? &localTimeInfo : nullptr,
+            timeValid
+        );
     }
 }
