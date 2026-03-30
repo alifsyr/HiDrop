@@ -150,13 +150,6 @@ const char *kDashboardPage = R"HTML(
       font-size: 0.92rem;
     }
 
-    .grid {
-      display: grid;
-      grid-template-columns: 1.4fr 1fr;
-      gap: 18px;
-      margin-top: 18px;
-    }
-
     .panel {
       padding: 24px;
       border-radius: var(--radius);
@@ -172,79 +165,14 @@ const char *kDashboardPage = R"HTML(
       letter-spacing: -0.03em;
     }
 
-    .kv {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 14px;
-    }
-
-    .kv-item {
-      padding: 16px;
-      border-radius: 18px;
-      background: rgba(13, 141, 119, 0.06);
-    }
-
-    .kv-item .k {
-      display: block;
-      font-size: 0.85rem;
-      color: var(--muted);
-      margin-bottom: 6px;
-    }
-
-    .kv-item .v {
-      font-size: 1.1rem;
-      font-weight: 700;
-    }
-
-    .ranges {
-      display: grid;
-      gap: 12px;
-    }
-
-    .range-track {
-      position: relative;
-      height: 12px;
-      border-radius: 999px;
-      background: rgba(19, 52, 43, 0.08);
-      overflow: hidden;
-    }
-
-    .range-fill,
-    .range-marker {
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      border-radius: 999px;
-    }
-
-    .range-fill {
-      background: rgba(13, 141, 119, 0.18);
-    }
-
-    .range-marker {
-      width: 14px;
-      top: -3px;
-      bottom: -3px;
-      border: 3px solid white;
-      background: var(--accent);
-      box-shadow: 0 10px 22px rgba(13, 141, 119, 0.25);
-      transform: translateX(-50%);
-    }
-
-    .badge {
-      display: inline-flex;
+    .section-head {
+      display: flex;
       align-items: center;
-      padding: 6px 12px;
-      border-radius: 999px;
-      font-size: 0.8rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
     }
-
-    .badge.ok { color: var(--ok); background: rgba(21, 128, 61, 0.1); }
-    .badge.warn { color: var(--warn); background: rgba(183, 121, 31, 0.12); }
-    .badge.danger { color: var(--danger); background: rgba(180, 35, 24, 0.1); }
 
     table {
       width: 100%;
@@ -270,19 +198,55 @@ const char *kDashboardPage = R"HTML(
       font-size: 0.92rem;
     }
 
-    .footer-note {
-      margin-top: 18px;
-      color: var(--muted);
-      font-size: 0.9rem;
-    }
-
     .empty {
       color: var(--muted);
       font-style: italic;
     }
 
+    .chart-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+      margin-top: 18px;
+    }
+
+    .chart-card {
+      display: grid;
+      gap: 14px;
+    }
+
+    .chart-frame {
+      min-height: 260px;
+      padding: 16px;
+      border-radius: 20px;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(237, 247, 244, 0.82));
+      border: 1px solid rgba(19, 52, 43, 0.08);
+    }
+
+    .chart-svg {
+      width: 100%;
+      height: 240px;
+      display: block;
+    }
+
+    .chart-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .chart-stat {
+      font-weight: 700;
+      color: var(--text);
+    }
+
     @media (max-width: 860px) {
-      .grid {
+      .chart-grid {
         grid-template-columns: 1fr;
       }
 
@@ -343,67 +307,32 @@ const char *kDashboardPage = R"HTML(
       </div>
     </section>
 
-    <section class="grid">
-      <article class="panel">
-        <h2>Range Monitor</h2>
-        <div class="ranges">
-          <div>
-            <div class="meta" style="display:flex;justify-content:space-between;gap:10px">
-              <strong>pH Range</strong>
-              <span id="phBand" class="badge warn">-</span>
-            </div>
-            <div class="range-track" aria-hidden="true" style="margin-top:10px">
-              <div id="phFill" class="range-fill"></div>
-              <div id="phMarker" class="range-marker"></div>
-            </div>
-            <div class="meta" id="phRangeText">-</div>
-          </div>
-
-          <div>
-            <div class="meta" style="display:flex;justify-content:space-between;gap:10px">
-              <strong>PPM Range</strong>
-              <span id="ppmBand" class="badge warn">-</span>
-            </div>
-            <div class="range-track" aria-hidden="true" style="margin-top:10px">
-              <div id="ppmFill" class="range-fill"></div>
-              <div id="ppmMarker" class="range-marker"></div>
-            </div>
-            <div class="meta" id="ppmRangeText">-</div>
-          </div>
+    <section class="chart-grid">
+      <article class="panel chart-card">
+        <div class="section-head">
+          <h2>pH Trend</h2>
+          <span class="meta">Recent sensor history</span>
         </div>
-
-        <div class="footer-note">
-          Dashboard refresh otomatis setiap beberapa detik. Untuk pemantauan lewat internet, publikasikan alamat dashboard ini melalui router, VPN, atau tunnel yang aman.
+        <div class="chart-frame">
+          <svg id="phChart" class="chart-svg" viewBox="0 0 640 240" role="img" aria-label="pH history chart"></svg>
+        </div>
+        <div class="chart-meta">
+          <span id="phChartRange">Waiting for data...</span>
+          <span id="phChartLatest" class="chart-stat">-</span>
         </div>
       </article>
 
-      <article class="panel">
-        <h2>System Status</h2>
-        <div class="kv">
-          <div class="kv-item">
-            <span class="k">Sensor Mode</span>
-            <span class="v" id="sensorMode">-</span>
-          </div>
-          <div class="kv-item">
-            <span class="k">Display Mode</span>
-            <span class="v" id="displayMode">-</span>
-          </div>
-          <div class="kv-item">
-            <span class="k">Calibration</span>
-            <span class="v" id="calibrationMode">-</span>
-          </div>
-          <div class="kv-item">
-            <span class="k">Local Time</span>
-            <span class="v" id="localTime">-</span>
-          </div>
-          <div class="kv-item">
-            <span class="k">Uptime</span>
-            <span class="v mono" id="uptime">-</span>
-          </div>
-          <div class="kv-item">
-            <span class="k">Device Reachability</span>
-            <span class="v" id="reachability">-</span>
-          </div>
+      <article class="panel chart-card">
+        <div class="section-head">
+          <h2>PPM Trend</h2>
+          <span class="meta">Recent sensor history</span>
+        </div>
+        <div class="chart-frame">
+          <svg id="ppmChart" class="chart-svg" viewBox="0 0 640 240" role="img" aria-label="PPM history chart"></svg>
+        </div>
+        <div class="chart-meta">
+          <span id="ppmChartRange">Waiting for data...</span>
+          <span id="ppmChartLatest" class="chart-stat">-</span>
         </div>
       </article>
     </section>
@@ -424,28 +353,130 @@ const char *kDashboardPage = R"HTML(
       return value.toFixed(digits);
     }
 
-    function setBadge(element, label) {
-      element.textContent = label;
-      element.className = "badge " + (label === "OK" ? "ok" : (label === "LOW" || label === "HIGH" ? "warn" : "danger"));
+    function createChartEmptyState(svgId, message) {
+      const svg = document.getElementById(svgId);
+      svg.innerHTML = `
+        <rect x="0" y="0" width="640" height="240" rx="18" fill="rgba(13, 141, 119, 0.04)"></rect>
+        <text x="320" y="120" text-anchor="middle" fill="#5f786d" font-size="16" font-family="Trebuchet MS, sans-serif">
+          ${message}
+        </text>
+      `;
     }
 
-    function setMarker(fillEl, markerEl, value, min, max, domainMin, domainMax) {
-      const clamp = (input, low, high) => Math.min(high, Math.max(low, input));
-      const span = Math.max(domainMax - domainMin, 0.0001);
-      const fillStart = ((min - domainMin) / span) * 100;
-      const fillEnd = ((max - domainMin) / span) * 100;
-      const marker = ((value - domainMin) / span) * 100;
-      fillEl.style.left = clamp(fillStart, 0, 100) + "%";
-      fillEl.style.width = clamp(fillEnd - fillStart, 0, 100) + "%";
-      markerEl.style.left = clamp(marker, 0, 100) + "%";
+    function buildChartPath(points) {
+      if (!Array.isArray(points) || points.length === 0) return "";
+      return points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(" ");
     }
 
-    function formatDuration(totalSeconds) {
-      const seconds = Math.max(0, Number(totalSeconds) || 0);
-      const hours = Math.floor(seconds / 3600);
-      const minutes = Math.floor((seconds % 3600) / 60);
-      const secs = Math.floor(seconds % 60);
-      return `${hours}h ${minutes}m ${secs}s`;
+    function renderLineChart(options) {
+      const {
+        svgId,
+        rangeId,
+        latestId,
+        points,
+        key,
+        digits,
+        unit,
+        color,
+        targetMin,
+        targetMax,
+        hardMin,
+        hardMax
+      } = options;
+
+      const svg = document.getElementById(svgId);
+      const rangeLabel = document.getElementById(rangeId);
+      const latestLabel = document.getElementById(latestId);
+      if (!Array.isArray(points) || points.length < 2) {
+        createChartEmptyState(svgId, "Need more samples to draw chart");
+        rangeLabel.textContent = "Collecting history...";
+        latestLabel.textContent = "-";
+        return;
+      }
+
+      const values = points
+        .map((point) => Number(point?.[key]))
+        .filter((value) => Number.isFinite(value));
+
+      if (values.length < 2) {
+        createChartEmptyState(svgId, "Invalid chart data");
+        rangeLabel.textContent = "Collecting history...";
+        latestLabel.textContent = "-";
+        return;
+      }
+
+      const margin = { top: 16, right: 18, bottom: 34, left: 48 };
+      const width = 640;
+      const height = 240;
+      const chartWidth = width - margin.left - margin.right;
+      const chartHeight = height - margin.top - margin.bottom;
+
+      let minValue = Math.min(...values, Number(targetMin));
+      let maxValue = Math.max(...values, Number(targetMax));
+      if (!Number.isFinite(minValue)) minValue = hardMin;
+      if (!Number.isFinite(maxValue)) maxValue = hardMax;
+
+      const spread = Math.max(maxValue - minValue, key === "ph" ? 0.4 : 50);
+      minValue -= spread * 0.18;
+      maxValue += spread * 0.18;
+      minValue = Math.max(hardMin, minValue);
+      maxValue = Math.min(hardMax, maxValue);
+      if (maxValue <= minValue) {
+        maxValue = minValue + (key === "ph" ? 1 : 100);
+      }
+
+      const scaleX = (index) => margin.left + (index / (values.length - 1)) * chartWidth;
+      const scaleY = (value) => margin.top + ((maxValue - value) / (maxValue - minValue)) * chartHeight;
+      const chartPoints = values.map((value, index) => ({ x: scaleX(index), y: scaleY(value), value }));
+
+      const path = buildChartPath(chartPoints);
+      const areaPath = `${path} L ${chartPoints[chartPoints.length - 1].x.toFixed(2)} ${(margin.top + chartHeight).toFixed(2)} L ${chartPoints[0].x.toFixed(2)} ${(margin.top + chartHeight).toFixed(2)} Z`;
+
+      const bandTop = scaleY(targetMax);
+      const bandBottom = scaleY(targetMin);
+      const yTicks = 4;
+      const grid = Array.from({ length: yTicks + 1 }, (_, index) => {
+        const ratio = index / yTicks;
+        const y = margin.top + ratio * chartHeight;
+        const value = maxValue - ratio * (maxValue - minValue);
+        return `
+          <line x1="${margin.left}" y1="${y.toFixed(2)}" x2="${(margin.left + chartWidth).toFixed(2)}" y2="${y.toFixed(2)}" stroke="rgba(19,52,43,0.12)" stroke-dasharray="4 6"></line>
+          <text x="${margin.left - 10}" y="${(y + 4).toFixed(2)}" text-anchor="end" fill="#5f786d" font-size="11">${value.toFixed(digits)}</text>
+        `;
+      }).join("");
+
+      const firstLabel = points[0]?.label || "Start";
+      const lastLabel = points[points.length - 1]?.label || "Now";
+      const lastValue = values[values.length - 1];
+
+      svg.innerHTML = `
+        <rect x="0" y="0" width="${width}" height="${height}" rx="18" fill="rgba(13, 141, 119, 0.02)"></rect>
+        ${grid}
+        <rect
+          x="${margin.left}"
+          y="${Math.min(bandTop, bandBottom).toFixed(2)}"
+          width="${chartWidth}"
+          height="${Math.abs(bandBottom - bandTop).toFixed(2)}"
+          fill="rgba(13, 141, 119, 0.10)">
+        </rect>
+        <path d="${areaPath}" fill="${color}" opacity="0.12"></path>
+        <path d="${path}" fill="none" stroke="${color}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></path>
+        ${chartPoints.map((point, index) => `
+          <circle
+            cx="${point.x.toFixed(2)}"
+            cy="${point.y.toFixed(2)}"
+            r="${index === chartPoints.length - 1 ? 5.5 : 3}"
+            fill="${index === chartPoints.length - 1 ? color : "#ffffff"}"
+            stroke="${color}"
+            stroke-width="2">
+          </circle>
+        `).join("")}
+        <text x="${margin.left}" y="${height - 10}" fill="#5f786d" font-size="11">${firstLabel}</text>
+        <text x="${(margin.left + chartWidth).toFixed(2)}" y="${height - 10}" text-anchor="end" fill="#5f786d" font-size="11">${lastLabel}</text>
+      `;
+
+      rangeLabel.textContent = `Window ${firstLabel} - ${lastLabel} | Target ${formatNumber(targetMin, digits)} - ${formatNumber(targetMax, digits)} ${unit}`;
+      latestLabel.textContent = `${formatNumber(lastValue, digits)} ${unit}`;
     }
 
     function renderReports(reports) {
@@ -502,38 +533,34 @@ const char *kDashboardPage = R"HTML(
       document.getElementById("tempMeta").textContent = `Voltage pH probe: ${formatNumber(data?.sensor?.ph_voltage, 3)} V`;
       document.getElementById("dosingMeta").textContent = `Mode: ${data?.dosing?.display_mode || "-"} | Busy: ${data?.dosing?.busy ? "YES" : "NO"}`;
 
-      setBadge(document.getElementById("phBand"), data?.sensor?.ph_band || "UNKNOWN");
-      setBadge(document.getElementById("ppmBand"), data?.sensor?.ppm_band || "UNKNOWN");
-      document.getElementById("phRangeText").textContent = `Live ${formatNumber(data?.sensor?.ph, 2)} | Target ${formatNumber(data?.targets?.ph_min, 2)} - ${formatNumber(data?.targets?.ph_max, 2)}`;
-      document.getElementById("ppmRangeText").textContent = `Live ${formatNumber(data?.sensor?.ppm, 0)} | Target ${formatNumber(data?.targets?.ppm_min, 0)} - ${formatNumber(data?.targets?.ppm_max, 0)}`;
-      setMarker(
-        document.getElementById("phFill"),
-        document.getElementById("phMarker"),
-        Number(data?.sensor?.ph || 0),
-        Number(data?.targets?.ph_min || 0),
-        Number(data?.targets?.ph_max || 0),
-        0,
-        14
-      );
-      setMarker(
-        document.getElementById("ppmFill"),
-        document.getElementById("ppmMarker"),
-        Number(data?.sensor?.ppm || 0),
-        Number(data?.targets?.ppm_min || 0),
-        Number(data?.targets?.ppm_max || 0),
-        0,
-        Math.max(1500, Number(data?.targets?.ppm_max || 0) * 1.4)
-      );
-
-      document.getElementById("sensorMode").textContent = data?.sensor?.mode || "-";
-      document.getElementById("displayMode").textContent = data?.dosing?.display_mode || "-";
-      document.getElementById("calibrationMode").textContent = data?.sensor?.calibration_mode ? "Active" : "Off";
-      document.getElementById("localTime").textContent = data?.device?.time_valid
-        ? `${data?.device?.date || "-"} ${data?.device?.time || "-"}`
-        : "Waiting for NTP sync";
-      document.getElementById("uptime").textContent = formatDuration(data?.device?.uptime_seconds);
-      document.getElementById("reachability").textContent = wifiOk ? "Local dashboard reachable" : "Offline";
-
+      renderLineChart({
+        svgId: "phChart",
+        rangeId: "phChartRange",
+        latestId: "phChartLatest",
+        points: data?.history?.points || [],
+        key: "ph",
+        digits: 2,
+        unit: "pH",
+        color: "#0d8d77",
+        targetMin: Number(data?.targets?.ph_min || 0),
+        targetMax: Number(data?.targets?.ph_max || 14),
+        hardMin: 0,
+        hardMax: 14
+      });
+      renderLineChart({
+        svgId: "ppmChart",
+        rangeId: "ppmChartRange",
+        latestId: "ppmChartLatest",
+        points: data?.history?.points || [],
+        key: "ppm",
+        digits: 0,
+        unit: "ppm",
+        color: "#2b6cb0",
+        targetMin: Number(data?.targets?.ppm_min || 0),
+        targetMax: Number(data?.targets?.ppm_max || 1500),
+        hardMin: 0,
+        hardMax: 5000
+      });
       renderReports(data?.reports || []);
     }
 
@@ -560,6 +587,9 @@ WebDashboardServer::WebDashboardServer()
     : _server(AppConfig::WEB_SERVER_PORT),
       _recentReportCount(0),
       _recentReportHead(0),
+      _historySampleCount(0),
+      _historySampleHead(0),
+      _lastHistorySampleMs(0),
       _wasWifiConnected(false) {}
 
 void WebDashboardServer::begin() {
@@ -612,6 +642,13 @@ void WebDashboardServer::update(
     } else {
         safeCopy(_snapshot.date, sizeof(_snapshot.date), "N/A");
         safeCopy(_snapshot.time, sizeof(_snapshot.time), "N/A");
+    }
+
+    const unsigned long now = millis();
+    if (_historySampleCount == 0 ||
+        (now - _lastHistorySampleMs) >= AppConfig::WEB_DASHBOARD_HISTORY_SAMPLE_INTERVAL_MS) {
+        addHistorySample(sensorData, localTime, timeValid);
+        _lastHistorySampleMs = now;
     }
 
     if (wifiConnected && !_wasWifiConnected) {
@@ -669,7 +706,7 @@ String WebDashboardServer::buildHtmlPage() const {
 
 String WebDashboardServer::buildStatusJson() const {
     String json;
-    json.reserve(3072);
+    json.reserve(12288);
 
     json += "{";
     json += "\"device\":{";
@@ -724,6 +761,10 @@ String WebDashboardServer::buildStatusJson() const {
     json += "\"";
     json += "},";
 
+    json += "\"history\":";
+    json += buildHistoryJson();
+    json += ",";
+
     json += "\"reports\":";
     json += buildRecentReportsJson();
     json += "}";
@@ -773,6 +814,65 @@ String WebDashboardServer::buildRecentReportsJson() const {
 
     json += "]";
     return json;
+}
+
+String WebDashboardServer::buildHistoryJson() const {
+    String json;
+    json.reserve(4096);
+    json += "{";
+    json += "\"sample_interval_ms\":";
+    json += String(AppConfig::WEB_DASHBOARD_HISTORY_SAMPLE_INTERVAL_MS);
+    json += ",\"points\":[";
+
+    const size_t oldestIndex =
+        (_historySampleHead + kHistorySamplesSize - _historySampleCount) % kHistorySamplesSize;
+
+    for (size_t offset = 0; offset < _historySampleCount; ++offset) {
+        const size_t index = (oldestIndex + offset) % kHistorySamplesSize;
+        const HistorySample &sample = _historySamples[index];
+
+        if (offset > 0) {
+            json += ",";
+        }
+
+        json += "{";
+        json += "\"label\":\"" + escapeJson(String(sample.label)) + "\"";
+        json += ",\"uptime_seconds\":";
+        json += String(sample.uptimeSeconds);
+        json += ",\"ph\":";
+        json += String(sample.ph, 2);
+        json += ",\"ppm\":";
+        json += String(sample.ppm, 0);
+        json += "}";
+    }
+
+    json += "]}";
+    return json;
+}
+
+void WebDashboardServer::addHistorySample(
+    const SensorData &sensorData,
+    const struct tm *localTime,
+    bool timeValid
+) {
+    HistorySample &sample = _historySamples[_historySampleHead];
+    sample.ph = sensorData.phValue;
+    sample.ppm = sensorData.tds;
+    sample.uptimeSeconds = millis() / 1000UL;
+
+    if (timeValid && localTime != nullptr) {
+        strftime(sample.label, sizeof(sample.label), "%H:%M:%S", localTime);
+    } else {
+        const unsigned long minutes = sample.uptimeSeconds / 60UL;
+        const unsigned long seconds = sample.uptimeSeconds % 60UL;
+        snprintf(sample.label, sizeof(sample.label), "%02lu:%02lu up", minutes, seconds);
+    }
+
+    _historySampleHead = (_historySampleHead + 1) % kHistorySamplesSize;
+
+    if (_historySampleCount < kHistorySamplesSize) {
+        _historySampleCount++;
+    }
 }
 
 void WebDashboardServer::safeCopy(char *destination, size_t destinationSize, const char *source) {

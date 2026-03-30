@@ -67,6 +67,7 @@ Project ini adalah sistem hidroponik berbasis ESP32 yang memantau `TDS`, `pH`, d
 - Dashboard lokal tersedia di `http://IP_ESP32/`
 - API live tersedia di `http://IP_ESP32/api/status`
 - Menampilkan `pH`, `PPM`, suhu, status Wi-Fi, waktu lokal, mode sensor, mode dosing, target range, dan histori singkat dosing terakhir.
+- Dilengkapi line chart `pH` dan `PPM` untuk melihat tren secara visual.
 - Saat ESP32 berhasil connect Wi-Fi, alamat dashboard akan dicetak ke Serial Monitor.
 
 Contoh respons API:
@@ -210,6 +211,7 @@ This project is an ESP32-based hydroponic system that monitors `TDS`, `pH`, and 
 - Local dashboard is available at `http://ESP32_IP/`
 - Live API is available at `http://ESP32_IP/api/status`
 - Shows `pH`, `PPM`, temperature, Wi-Fi status, local time, sensor mode, dosing mode, target ranges, and a short recent dosing history.
+- Includes `pH` and `PPM` line charts for quick visual trend monitoring.
 - Once Wi-Fi is connected, the device prints the dashboard address to the serial monitor.
 
 ### Serial Commands

@@ -96,6 +96,7 @@ namespace AppConfig {
     constexpr uint16_t WEB_SERVER_PORT = 80;
     constexpr char WEB_DASHBOARD_TITLE[] = "Hydroponic Monitor";
     constexpr unsigned long WEB_DASHBOARD_REFRESH_INTERVAL_MS = 5000;
+    constexpr unsigned long WEB_DASHBOARD_HISTORY_SAMPLE_INTERVAL_MS = 15000;
 
     // Google Sheets logging
     constexpr bool GOOGLE_SHEETS_LOGGING_ENABLED = APP_GOOGLE_SHEETS_LOGGING_ENABLED;

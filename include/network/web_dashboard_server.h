@@ -31,6 +31,7 @@ public:
 
 private:
     static constexpr size_t kRecentReportsSize = 6;
+    static constexpr size_t kHistorySamplesSize = 48;
 
     struct Snapshot {
         SensorData sensorData = {};
@@ -48,11 +49,22 @@ private:
         unsigned long uptimeSeconds = 0;
     };
 
+    struct HistorySample {
+        float ph = 0.0f;
+        float ppm = 0.0f;
+        unsigned long uptimeSeconds = 0;
+        char label[16] = "N/A";
+    };
+
     WebServer _server;
     Snapshot _snapshot;
     DosingReport _recentReports[kRecentReportsSize];
+    HistorySample _historySamples[kHistorySamplesSize];
     size_t _recentReportCount;
     size_t _recentReportHead;
+    size_t _historySampleCount;
+    size_t _historySampleHead;
+    unsigned long _lastHistorySampleMs;
     bool _wasWifiConnected;
 
     void registerRoutes();
@@ -61,6 +73,8 @@ private:
     String buildHtmlPage() const;
     String buildStatusJson() const;
     String buildRecentReportsJson() const;
+    String buildHistoryJson() const;
+    void addHistorySample(const SensorData &sensorData, const struct tm *localTime, bool timeValid);
     static void safeCopy(char *destination, size_t destinationSize, const char *source);
     static String escapeJson(const String &value);
     static const char *displayModeLabel(DisplayMode mode);
