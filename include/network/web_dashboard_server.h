@@ -50,10 +50,8 @@ private:
     };
 
     struct HistorySample {
-        float ph = 0.0f;
-        float ppm = 0.0f;
-        unsigned long uptimeSeconds = 0;
-        char label[16] = "N/A";
+        uint16_t phX100 = 0;
+        uint16_t ppm = 0;
     };
 
     WebServer _server;
@@ -70,13 +68,16 @@ private:
     void registerRoutes();
     void handleRoot();
     void handleStatus();
+    void handleHistory();
+    void handleReports();
     String buildHtmlPage() const;
     String buildStatusJson() const;
     String buildRecentReportsJson() const;
     String buildHistoryJson() const;
-    void addHistorySample(const SensorData &sensorData, const struct tm *localTime, bool timeValid);
+    void addHistorySample(const SensorData &sensorData);
     static void safeCopy(char *destination, size_t destinationSize, const char *source);
     static String escapeJson(const String &value);
     static const char *displayModeLabel(DisplayMode mode);
-    static const char *sensorBandLabel(float value, float minValue, float maxValue);
+    static uint16_t encodePhX100(float phValue);
+    static uint16_t encodePpm(float ppmValue);
 };
