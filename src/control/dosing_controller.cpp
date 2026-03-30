@@ -201,11 +201,11 @@ DisplayMode DosingController::getDisplayMode() const {
         case State::WAITING_RECHECK:
             switch (_pendingAction) {
                 case Action::DOSE_NUTRIENTS:
-                    return DisplayMode::NUTRI_AB;
+                    return DisplayMode::NUTRI_AB_WAIT;
                 case Action::DOSE_PH_DOWN:
-                    return DisplayMode::PH_DOWN_DOSE;
+                    return DisplayMode::PH_DOWN_WAIT;
                 case Action::DOSE_PH_UP:
-                    return DisplayMode::PH_UP_DOSE;
+                    return DisplayMode::PH_UP_WAIT;
                 case Action::MANUAL_DILUTION_REQUIRED:
                 case Action::NONE:
                 default:
