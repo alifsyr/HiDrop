@@ -9,6 +9,7 @@ public:
     void begin();
     float readVoltage();
     float readPh();
+    float convertVoltageToPh(float voltage) const;
 
 private:
     int _pin;
