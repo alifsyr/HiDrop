@@ -4,9 +4,13 @@
 
 #include "config/app_config.h"
 #include "config/pins.h"
+#include "control/dosing_controller.h"
 #include "control/sensor_manager.h"
+#include "control/target_range_manager.h"
 #include "display/lcd_display.h"
 #include "models/display_mode.h"
+#include "models/dosing_report.h"
+#include "network/google_sheets_logger.h"
 #include "network/wifi_clock.h"
 #include "sensors/ph_sensor.h"
 #include "sensors/tds_sensor.h"
@@ -16,6 +20,11 @@ namespace {
 DisplayMode currentDisplayMode = DisplayMode::NORMAL;
 bool wasWifiConnected = false;
 unsigned long initFinishStartMs = 0;
+unsigned long targetMessageUntilMs = 0;
+String targetMessageLine1;
+String targetMessageLine2;
+String targetMessageLine3;
+String targetMessageLine4;
 
 String compactCommand(const String &command) {
     String compact = command;
@@ -101,6 +110,9 @@ LcdDisplay lcdDisplay(
     AppConfig::LCD_ROWS
 );
 WifiClock wifiClock(AppConfig::WIFI_SSID, AppConfig::WIFI_PASSWORD);
+DosingController dosingController;
+GoogleSheetsLogger sheetsLogger;
+TargetRangeManager targetRangeManager;
 
 void setup() {
     Serial.begin(115200);
@@ -110,9 +122,12 @@ void setup() {
 
     Wire.begin(Pins::I2C_SDA, Pins::I2C_SCL);
 
+    targetRangeManager.begin();
     sensorManager.begin();
     lcdDisplay.begin();
     wifiClock.begin();
+    dosingController.begin();
+    sheetsLogger.begin();
 
     Serial.println();
 }
@@ -122,9 +137,18 @@ void loop() {
         String command = Serial.readStringUntil('\n');
         command.trim();
 
-        if (command.length() > 0 && !trySetDisplayMode(command)) {
+        if (command.length() > 0 && !targetRangeManager.handleCommand(command) && !trySetDisplayMode(command)) {
             sensorManager.handleCalibrationCommand(command);
         }
+    }
+
+    if (targetRangeManager.consumeDisplayMessage(
+        targetMessageLine1,
+        targetMessageLine2,
+        targetMessageLine3,
+        targetMessageLine4
+    )) {
+        targetMessageUntilMs = millis() + AppConfig::LCD_TARGET_MESSAGE_DURATION_MS;
     }
 
     sensorManager.update();
@@ -134,6 +158,9 @@ void loop() {
     static unsigned long lastLcdMs = 0;
     const unsigned long now = millis();
     const bool wifiConnected = wifiClock.isConnected();
+    SensorData currentData = sensorManager.getSensorData();
+    struct tm localTimeInfo = {};
+    const bool timeValid = wifiClock.getLocalTime(localTimeInfo);
 
     if (!wifiConnected) {
         wasWifiConnected = false;
@@ -143,21 +170,44 @@ void loop() {
         initFinishStartMs = now;
     }
 
+    dosingController.update(
+        currentData,
+        sensorManager.isCalibrationMode(),
+        timeValid ? &localTimeInfo : nullptr,
+        timeValid,
+        targetRangeManager.getRanges()
+    );
+
+    DosingReport completedReport;
+    if (dosingController.consumeCompletedReport(completedReport)) {
+        sheetsLogger.queueReport(completedReport);
+    }
+
+    sheetsLogger.update(wifiConnected);
+
     if (!sensorManager.isCalibrationMode() && (now - lastPrintMs >= AppConfig::SENSOR_PRINT_INTERVAL_MS)) {
         lastPrintMs = now;
 
-        SensorData data = sensorManager.getSensorData();
-
         Serial.print("Temp: ");
-        Serial.print(data.temperatureC, 2);
+        Serial.print(currentData.temperatureC, 2);
         Serial.print(" C | TDS: ");
-        Serial.print(data.tds, 0);
+        Serial.print(currentData.tds, 0);
         Serial.print(" ppm | pH: ");
-        Serial.println(data.phValue, 2);
+        Serial.println(currentData.phValue, 2);
     }
 
     if (now - lastLcdMs >= AppConfig::LCD_REFRESH_INTERVAL_MS) {
         lastLcdMs = now;
+
+        if (now < targetMessageUntilMs) {
+            lcdDisplay.showMessage(
+                targetMessageLine1,
+                targetMessageLine2,
+                targetMessageLine3,
+                targetMessageLine4
+            );
+            return;
+        }
 
         if (!wifiConnected) {
             lcdDisplay.showInitializing();
@@ -169,11 +219,8 @@ void loop() {
             return;
         }
 
-        struct tm localTimeInfo = {};
-        const bool timeValid = wifiClock.getLocalTime(localTimeInfo);
-
         lcdDisplay.show(
-            sensorManager.getSensorData(),
+            currentData,
             currentDisplayMode,
             wifiConnected,
             timeValid ? &localTimeInfo : nullptr,
