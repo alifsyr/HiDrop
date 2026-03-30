@@ -60,6 +60,7 @@ namespace AppConfig {
     constexpr unsigned long LCD_REFRESH_INTERVAL_MS = 300;
     constexpr unsigned long LCD_SCROLL_INTERVAL_MS = 300;
     constexpr unsigned long LCD_INIT_FINISH_DURATION_MS = 2000;
+    constexpr unsigned long LCD_TARGET_MESSAGE_DURATION_MS = 3000;
     constexpr uint8_t LCD_SCROLL_GAP_CHARS = 3;
 
     // Wi-Fi + NTP (WIB / UTC+7)

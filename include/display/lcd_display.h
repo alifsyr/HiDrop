@@ -11,6 +11,7 @@ public:
     LcdDisplay(uint8_t address, uint8_t columns, uint8_t rows);
 
     void begin();
+    void showMessage(const String &line1, const String &line2, const String &line3, const String &line4);
     void showInitializing();
     void showInitializingFinish();
     void show(

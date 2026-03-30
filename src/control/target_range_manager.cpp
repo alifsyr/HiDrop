@@ -39,6 +39,7 @@ bool TargetRangeManager::handleCommand(const String &command) {
 
     if ((count == 1 && (token0 == "TARGETS" || token0 == "RANGES")) ||
         (count == 2 && token0 == "SHOW" && (tokens[1] == "TARGETS" || tokens[1] == "RANGES"))) {
+        queueCurrentTargetsMessage();
         printRanges();
         return true;
     }
@@ -71,6 +72,19 @@ bool TargetRangeManager::handleCommand(const String &command) {
 
 const TargetRanges &TargetRangeManager::getRanges() const {
     return _ranges;
+}
+
+bool TargetRangeManager::consumeDisplayMessage(String &line1, String &line2, String &line3, String &line4) {
+    if (!_hasDisplayMessage) {
+        return false;
+    }
+
+    line1 = _displayLine1;
+    line2 = _displayLine2;
+    line3 = _displayLine3;
+    line4 = _displayLine4;
+    _hasDisplayMessage = false;
+    return true;
 }
 
 void TargetRangeManager::printRanges() const {
@@ -120,6 +134,12 @@ void TargetRangeManager::loadDefaults() {
 void TargetRangeManager::resetToDefaults() {
     loadDefaults();
     saveToEeprom();
+    setDisplayMessage(
+        "Targets Reset",
+        "pH " + String(_ranges.phMin, 2) + " - " + String(_ranges.phMax, 2),
+        "PPM " + String(_ranges.ppmMin, 0) + " - " + String(_ranges.ppmMax, 0),
+        "Saved"
+    );
 }
 
 bool TargetRangeManager::setPhRange(float minValue, float maxValue) {
@@ -131,6 +151,12 @@ bool TargetRangeManager::setPhRange(float minValue, float maxValue) {
     _ranges.phMin = minValue;
     _ranges.phMax = maxValue;
     saveToEeprom();
+    setDisplayMessage(
+        "pH Target Saved",
+        String(_ranges.phMin, 2) + " - " + String(_ranges.phMax, 2),
+        "",
+        "Saved to EEPROM"
+    );
 
     Serial.println("pH target updated.");
     printRanges();
@@ -146,10 +172,33 @@ bool TargetRangeManager::setPpmRange(float minValue, float maxValue) {
     _ranges.ppmMin = minValue;
     _ranges.ppmMax = maxValue;
     saveToEeprom();
+    setDisplayMessage(
+        "PPM Target Saved",
+        String(_ranges.ppmMin, 0) + " - " + String(_ranges.ppmMax, 0),
+        "",
+        "Saved to EEPROM"
+    );
 
     Serial.println("PPM target updated.");
     printRanges();
     return true;
+}
+
+void TargetRangeManager::queueCurrentTargetsMessage() {
+    setDisplayMessage(
+        "Current Targets",
+        "pH " + String(_ranges.phMin, 2) + " - " + String(_ranges.phMax, 2),
+        "PPM " + String(_ranges.ppmMin, 0) + " - " + String(_ranges.ppmMax, 0),
+        "Active"
+    );
+}
+
+void TargetRangeManager::setDisplayMessage(const String &line1, const String &line2, const String &line3, const String &line4) {
+    _displayLine1 = line1;
+    _displayLine2 = line2;
+    _displayLine3 = line3;
+    _displayLine4 = line4;
+    _hasDisplayMessage = true;
 }
 
 float TargetRangeManager::parseNumber(String token) {

@@ -20,6 +20,11 @@ namespace {
 DisplayMode currentDisplayMode = DisplayMode::NORMAL;
 bool wasWifiConnected = false;
 unsigned long initFinishStartMs = 0;
+unsigned long targetMessageUntilMs = 0;
+String targetMessageLine1;
+String targetMessageLine2;
+String targetMessageLine3;
+String targetMessageLine4;
 
 String compactCommand(const String &command) {
     String compact = command;
@@ -137,6 +142,15 @@ void loop() {
         }
     }
 
+    if (targetRangeManager.consumeDisplayMessage(
+        targetMessageLine1,
+        targetMessageLine2,
+        targetMessageLine3,
+        targetMessageLine4
+    )) {
+        targetMessageUntilMs = millis() + AppConfig::LCD_TARGET_MESSAGE_DURATION_MS;
+    }
+
     sensorManager.update();
     wifiClock.update();
 
@@ -184,6 +198,16 @@ void loop() {
 
     if (now - lastLcdMs >= AppConfig::LCD_REFRESH_INTERVAL_MS) {
         lastLcdMs = now;
+
+        if (now < targetMessageUntilMs) {
+            lcdDisplay.showMessage(
+                targetMessageLine1,
+                targetMessageLine2,
+                targetMessageLine3,
+                targetMessageLine4
+            );
+            return;
+        }
 
         if (!wifiConnected) {
             lcdDisplay.showInitializing();
