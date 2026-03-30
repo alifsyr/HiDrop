@@ -24,11 +24,11 @@ namespace AppConfig {
     constexpr unsigned long PH_UPDATE_INTERVAL_MS = 1500;
     constexpr unsigned long PH_QUIET_AFTER_TDS_MS = 500;
 
-    // Auto dosing targets (adult lettuce)
-    constexpr float PH_TARGET_MIN = 5.8f;
-    constexpr float PH_TARGET_MAX = 6.2f;
-    constexpr float PPM_TARGET_MIN = 600.0f;
-    constexpr float PPM_TARGET_MAX = 800.0f;
+    // Auto dosing target defaults (adult lettuce)
+    constexpr float DEFAULT_PH_TARGET_MIN = 5.8f;
+    constexpr float DEFAULT_PH_TARGET_MAX = 6.2f;
+    constexpr float DEFAULT_PPM_TARGET_MIN = 600.0f;
+    constexpr float DEFAULT_PPM_TARGET_MAX = 800.0f;
 
     // Relay behavior
     constexpr bool RELAY_ACTIVE_LOW = true;

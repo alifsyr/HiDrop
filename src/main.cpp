@@ -6,6 +6,7 @@
 #include "config/pins.h"
 #include "control/dosing_controller.h"
 #include "control/sensor_manager.h"
+#include "control/target_range_manager.h"
 #include "display/lcd_display.h"
 #include "models/display_mode.h"
 #include "models/dosing_report.h"
@@ -106,6 +107,7 @@ LcdDisplay lcdDisplay(
 WifiClock wifiClock(AppConfig::WIFI_SSID, AppConfig::WIFI_PASSWORD);
 DosingController dosingController;
 GoogleSheetsLogger sheetsLogger;
+TargetRangeManager targetRangeManager;
 
 void setup() {
     Serial.begin(115200);
@@ -115,6 +117,7 @@ void setup() {
 
     Wire.begin(Pins::I2C_SDA, Pins::I2C_SCL);
 
+    targetRangeManager.begin();
     sensorManager.begin();
     lcdDisplay.begin();
     wifiClock.begin();
@@ -129,7 +132,7 @@ void loop() {
         String command = Serial.readStringUntil('\n');
         command.trim();
 
-        if (command.length() > 0 && !trySetDisplayMode(command)) {
+        if (command.length() > 0 && !targetRangeManager.handleCommand(command) && !trySetDisplayMode(command)) {
             sensorManager.handleCalibrationCommand(command);
         }
     }
@@ -157,7 +160,8 @@ void loop() {
         currentData,
         sensorManager.isCalibrationMode(),
         timeValid ? &localTimeInfo : nullptr,
-        timeValid
+        timeValid,
+        targetRangeManager.getRanges()
     );
 
     DosingReport completedReport;

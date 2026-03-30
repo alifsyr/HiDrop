@@ -32,7 +32,8 @@ void DosingController::update(
     const SensorData &data,
     bool calibrationMode,
     const struct tm *localTime,
-    bool timeValid
+    bool timeValid,
+    const TargetRanges &targetRanges
 ) {
     const unsigned long now = millis();
 
@@ -49,7 +50,7 @@ void DosingController::update(
                 return;
             }
 
-            const Action action = chooseAction(data);
+            const Action action = chooseAction(data, targetRanges);
             if (action == Action::NONE) {
                 return;
             }
@@ -149,7 +150,7 @@ void DosingController::update(
                 return;
             }
 
-            _pendingAction = chooseAction(data);
+            _pendingAction = chooseAction(data, targetRanges);
             if (_pendingAction == Action::NONE) {
                 finalizeEvent(data, "Targets reached.");
                 return;
@@ -225,20 +226,20 @@ bool DosingController::consumeCompletedReport(DosingReport &report) {
     return true;
 }
 
-DosingController::Action DosingController::chooseAction(const SensorData &data) const {
-    if (data.tds > AppConfig::PPM_TARGET_MAX) {
+DosingController::Action DosingController::chooseAction(const SensorData &data, const TargetRanges &targetRanges) const {
+    if (data.tds > targetRanges.ppmMax) {
         return Action::MANUAL_DILUTION_REQUIRED;
     }
 
-    if (data.tds < AppConfig::PPM_TARGET_MIN) {
+    if (data.tds < targetRanges.ppmMin) {
         return Action::DOSE_NUTRIENTS;
     }
 
-    if (data.phValue > AppConfig::PH_TARGET_MAX) {
+    if (data.phValue > targetRanges.phMax) {
         return Action::DOSE_PH_DOWN;
     }
 
-    if (data.phValue < AppConfig::PH_TARGET_MIN) {
+    if (data.phValue < targetRanges.phMin) {
         return Action::DOSE_PH_UP;
     }
 

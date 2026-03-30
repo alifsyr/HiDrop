@@ -5,6 +5,7 @@
 
 #include "models/dosing_report.h"
 #include "models/sensor_data.h"
+#include "models/target_ranges.h"
 
 class DosingController {
 public:
@@ -15,7 +16,8 @@ public:
         const SensorData &data,
         bool calibrationMode,
         const struct tm *localTime,
-        bool timeValid
+        bool timeValid,
+        const TargetRanges &targetRanges
     );
 
     bool isBusy() const;
@@ -53,7 +55,7 @@ private:
     uint8_t _nutrientCycles;
     uint8_t _phCycles;
 
-    Action chooseAction(const SensorData &data) const;
+    Action chooseAction(const SensorData &data, const TargetRanges &targetRanges) const;
     unsigned long doseDurationMs(float ml, float flowMlPerSecond) const;
     void startEvent(const SensorData &data, const struct tm *localTime, bool timeValid);
     void finalizeEvent(const SensorData &data, const char *reason);
