@@ -29,23 +29,21 @@ void SensorManager::begin() {
     _lastPhUpdateMs = millis();
 }
 
-void SensorManager::handleCalibrationSerial() {
-    if (!Serial.available()) return;
+void SensorManager::handleCalibrationCommand(const String &cmd) {
+    String normalized = cmd;
+    normalized.trim();
+    normalized.toUpperCase();
 
-    String cmd = Serial.readStringUntil('\n');
-    cmd.trim();
-    cmd.toUpperCase();
+    if (normalized.length() == 0) return;
 
-    if (cmd.length() == 0) return;
-
-    if (cmd == "ENTER") {
+    if (normalized == "ENTER") {
         _calibrationMode = true;
         _mode = ReadMode::CALIBRATION;
     }
 
-    _tdsSensor.calibrate(cmd.c_str());
+    _tdsSensor.calibrate(normalized.c_str());
 
-    if (cmd == "EXIT") {
+    if (normalized == "EXIT") {
         _calibrationMode = false;
         _mode = ReadMode::IDLE;
     }

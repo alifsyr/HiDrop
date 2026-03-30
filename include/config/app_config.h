@@ -28,5 +28,16 @@ namespace AppConfig {
     constexpr uint8_t LCD_I2C_ADDRESS = 0x27;
     constexpr uint8_t LCD_COLUMNS = 20;
     constexpr uint8_t LCD_ROWS = 4;
-    constexpr unsigned long LCD_REFRESH_INTERVAL_MS = 1000;
+    constexpr unsigned long LCD_REFRESH_INTERVAL_MS = 300;
+    constexpr unsigned long LCD_SCROLL_INTERVAL_MS = 300;
+    constexpr unsigned long LCD_INIT_FINISH_DURATION_MS = 2000;
+    constexpr uint8_t LCD_SCROLL_GAP_CHARS = 3;
+
+    // Wi-Fi + NTP (WIB / UTC+7)
+    constexpr char WIFI_SSID[] = "Tabrin";
+    constexpr char WIFI_PASSWORD[] = "qawsed123";
+    constexpr char NTP_SERVER_PRIMARY[] = "pool.ntp.org";
+    constexpr char NTP_SERVER_SECONDARY[] = "time.nist.gov";
+    constexpr long WIB_UTC_OFFSET_SECONDS = 7L * 60L * 60L;
+    constexpr unsigned long WIFI_RECONNECT_INTERVAL_MS = 10000;
 }
