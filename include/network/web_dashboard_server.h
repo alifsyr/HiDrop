@@ -55,6 +55,7 @@ private:
     };
 
     WebServer _server;
+    String _cachedHtmlPage;
     Snapshot _snapshot;
     DosingReport _recentReports[kRecentReportsSize];
     HistorySample _historySamples[kHistorySamplesSize];

@@ -657,6 +657,7 @@ void WebDashboardServer::begin() {
         return;
     }
 
+    _cachedHtmlPage = buildHtmlPage();
     registerRoutes();
     _server.begin();
     Serial.print("Web dashboard listening on port ");
@@ -751,7 +752,7 @@ void WebDashboardServer::registerRoutes() {
 }
 
 void WebDashboardServer::handleRoot() {
-    _server.send(200, "text/html; charset=utf-8", buildHtmlPage());
+    _server.send(200, "text/html; charset=utf-8", _cachedHtmlPage);
 }
 
 void WebDashboardServer::handleStatus() {
@@ -786,7 +787,7 @@ String WebDashboardServer::buildHtmlPage() const {
 
 String WebDashboardServer::buildStatusJson() const {
     String json;
-    json.reserve(768);
+    json.reserve(960);
 
     json += "{";
     json += "\"device\":{";
@@ -795,7 +796,10 @@ String WebDashboardServer::buildStatusJson() const {
     json += ",\"ip_address\":\"" + escapeJson(String(_snapshot.ipAddress)) + "\"";
     json += ",\"time_valid\":";
     json += _snapshot.timeValid ? "true" : "false";
+    json += ",\"date\":\"" + escapeJson(String(_snapshot.date)) + "\"";
     json += ",\"time\":\"" + escapeJson(String(_snapshot.time)) + "\"";
+    json += ",\"uptime_seconds\":";
+    json += String(_snapshot.uptimeSeconds);
     json += "},";
 
     json += "\"sensor\":{";
@@ -807,6 +811,11 @@ String WebDashboardServer::buildStatusJson() const {
     json += String(_snapshot.sensorData.phVoltage, 3);
     json += ",\"ph\":";
     json += String(_snapshot.sensorData.phValue, 2);
+    json += ",\"mode\":\"";
+    json += escapeJson(String(_snapshot.sensorMode));
+    json += "\"";
+    json += ",\"calibration_mode\":";
+    json += _snapshot.calibrationMode ? "true" : "false";
     json += "},";
 
     json += "\"targets\":{";
@@ -839,9 +848,9 @@ String WebDashboardServer::buildRecentReportsJson() const {
     json += "[";
 
     for (size_t offset = 0; offset < _recentReportCount; ++offset) {
-        const size_t index =
+        const size_t reportIndex =
             (_recentReportHead + kRecentReportsSize - 1 - offset) % kRecentReportsSize;
-        const DosingReport &report = _recentReports[index];
+        const DosingReport &report = _recentReports[reportIndex];
 
         if (offset > 0) {
             json += ",";
@@ -889,8 +898,8 @@ String WebDashboardServer::buildHistoryJson() const {
         (_historySampleHead + kHistorySamplesSize - _historySampleCount) % kHistorySamplesSize;
 
     for (size_t offset = 0; offset < _historySampleCount; ++offset) {
-        const size_t index = (oldestIndex + offset) % kHistorySamplesSize;
-        const HistorySample &sample = _historySamples[index];
+        const size_t historyIndex = (oldestIndex + offset) % kHistorySamplesSize;
+        const HistorySample &sample = _historySamples[historyIndex];
 
         if (offset > 0) {
             json += ",";
@@ -902,8 +911,8 @@ String WebDashboardServer::buildHistoryJson() const {
     json += "],\"ppm\":[";
 
     for (size_t offset = 0; offset < _historySampleCount; ++offset) {
-        const size_t index = (oldestIndex + offset) % kHistorySamplesSize;
-        const HistorySample &sample = _historySamples[index];
+        const size_t historyIndex = (oldestIndex + offset) % kHistorySamplesSize;
+        const HistorySample &sample = _historySamples[historyIndex];
 
         if (offset > 0) {
             json += ",";
@@ -941,8 +950,8 @@ String WebDashboardServer::escapeJson(const String &value) {
     String escaped;
     escaped.reserve(value.length() + 8);
 
-    for (size_t index = 0; index < value.length(); ++index) {
-        const char character = value.charAt(index);
+    for (size_t charIndex = 0; charIndex < value.length(); ++charIndex) {
+        const char character = value.charAt(charIndex);
 
         switch (character) {
             case '\\':

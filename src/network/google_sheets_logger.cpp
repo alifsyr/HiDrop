@@ -54,7 +54,7 @@ void GoogleSheetsLogger::update(bool wifiConnected) {
 }
 
 bool GoogleSheetsLogger::isConfigured() const {
-    return String(AppConfig::GOOGLE_SHEETS_WEB_APP_URL).length() > 0;
+    return AppConfig::GOOGLE_SHEETS_WEB_APP_URL[0] != '\0';
 }
 
 String GoogleSheetsLogger::buildPayload(const DosingReport &report) const {
@@ -73,7 +73,7 @@ String GoogleSheetsLogger::buildPayload(const DosingReport &report) const {
     payload += "\"manual_dilution_required\":";
     payload += report.manualDilutionRequired ? "true" : "false";
 
-    if (String(AppConfig::GOOGLE_SHEETS_SHARED_SECRET).length() > 0) {
+    if (AppConfig::GOOGLE_SHEETS_SHARED_SECRET[0] != '\0') {
         payload += ",\"token\":\"";
         payload += AppConfig::GOOGLE_SHEETS_SHARED_SECRET;
         payload += "\"";

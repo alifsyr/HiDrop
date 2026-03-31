@@ -1,6 +1,8 @@
 #include "control/target_range_manager.h"
 
 #include <EEPROM.h>
+#include <math.h>
+#include <stdlib.h>
 
 #include "config/app_config.h"
 
@@ -52,19 +54,43 @@ bool TargetRangeManager::handleCommand(const String &command) {
     }
 
     if (count == 3 && tokens[0] == "PH") {
-        return setPhRange(parseNumber(tokens[1]), parseNumber(tokens[2]));
+        float minValue = 0.0f;
+        float maxValue = 0.0f;
+        if (!parseNumber(tokens[1], minValue) || !parseNumber(tokens[2], maxValue)) {
+            Serial.println("Invalid pH number format. Example: SET PH 5.8 6.2");
+            return true;
+        }
+        return setPhRange(minValue, maxValue);
     }
 
     if (count == 3 && tokens[0] == "PPM") {
-        return setPpmRange(parseNumber(tokens[1]), parseNumber(tokens[2]));
+        float minValue = 0.0f;
+        float maxValue = 0.0f;
+        if (!parseNumber(tokens[1], minValue) || !parseNumber(tokens[2], maxValue)) {
+            Serial.println("Invalid PPM number format. Example: SET PPM 600 800");
+            return true;
+        }
+        return setPpmRange(minValue, maxValue);
     }
 
     if (count == 4 && token0 == "SET" && tokens[1] == "PH") {
-        return setPhRange(parseNumber(tokens[2]), parseNumber(tokens[3]));
+        float minValue = 0.0f;
+        float maxValue = 0.0f;
+        if (!parseNumber(tokens[2], minValue) || !parseNumber(tokens[3], maxValue)) {
+            Serial.println("Invalid pH number format. Example: SET PH 5.8 6.2");
+            return true;
+        }
+        return setPhRange(minValue, maxValue);
     }
 
     if (count == 4 && token0 == "SET" && tokens[1] == "PPM") {
-        return setPpmRange(parseNumber(tokens[2]), parseNumber(tokens[3]));
+        float minValue = 0.0f;
+        float maxValue = 0.0f;
+        if (!parseNumber(tokens[2], minValue) || !parseNumber(tokens[3], maxValue)) {
+            Serial.println("Invalid PPM number format. Example: SET PPM 600 800");
+            return true;
+        }
+        return setPpmRange(minValue, maxValue);
     }
 
     return false;
@@ -112,6 +138,10 @@ bool TargetRangeManager::loadFromEeprom() {
         return false;
     }
 
+    if (!isValidRanges(stored.ranges)) {
+        return false;
+    }
+
     _ranges = stored.ranges;
     return true;
 }
@@ -143,7 +173,7 @@ void TargetRangeManager::resetToDefaults() {
 }
 
 bool TargetRangeManager::setPhRange(float minValue, float maxValue) {
-    if (minValue < 0.0f || maxValue > 14.0f || minValue >= maxValue) {
+    if (!isValidPhRange(minValue, maxValue)) {
         Serial.println("Invalid pH range. Example: SET PH 5.8 6.2");
         return true;
     }
@@ -164,7 +194,7 @@ bool TargetRangeManager::setPhRange(float minValue, float maxValue) {
 }
 
 bool TargetRangeManager::setPpmRange(float minValue, float maxValue) {
-    if (minValue < 0.0f || maxValue > 5000.0f || minValue >= maxValue) {
+    if (!isValidPpmRange(minValue, maxValue)) {
         Serial.println("Invalid PPM range. Example: SET PPM 600 800");
         return true;
     }
@@ -201,35 +231,69 @@ void TargetRangeManager::setDisplayMessage(const String &line1, const String &li
     _hasDisplayMessage = true;
 }
 
-float TargetRangeManager::parseNumber(String token) {
-    token.trim();
-    token.replace(",", ".");
-    return token.toFloat();
+bool TargetRangeManager::isValidPhRange(float minValue, float maxValue) {
+    return isfinite(minValue) && isfinite(maxValue) && minValue >= 0.0f && maxValue <= 14.0f &&
+           minValue < maxValue;
 }
 
-uint8_t TargetRangeManager::tokenize(String input, String tokens[], uint8_t maxTokens) {
-    input.trim();
-    input.toUpperCase();
-    input.replace("=", " ");
+bool TargetRangeManager::isValidPpmRange(float minValue, float maxValue) {
+    return isfinite(minValue) && isfinite(maxValue) && minValue >= 0.0f && maxValue <= 5000.0f &&
+           minValue < maxValue;
+}
 
-    while (input.indexOf("  ") >= 0) {
-        input.replace("  ", " ");
+bool TargetRangeManager::isValidRanges(const TargetRanges &ranges) {
+    return isValidPhRange(ranges.phMin, ranges.phMax) &&
+           isValidPpmRange(ranges.ppmMin, ranges.ppmMax);
+}
+
+bool TargetRangeManager::parseNumber(const String &token, float &outValue) {
+    String normalized = token;
+    normalized.trim();
+    normalized.replace(",", ".");
+
+    if (normalized.length() == 0) {
+        return false;
+    }
+
+    const char *startPtr = normalized.c_str();
+    char *endPtr = nullptr;
+    const float parsed = strtof(startPtr, &endPtr);
+    if (endPtr == startPtr || (endPtr != nullptr && *endPtr != '\0')) {
+        return false;
+    }
+
+    if (!isfinite(parsed)) {
+        return false;
+    }
+
+    outValue = parsed;
+    return true;
+}
+
+uint8_t TargetRangeManager::tokenize(const String &input, String tokens[], uint8_t maxTokens) {
+    String normalized = input;
+    normalized.trim();
+    normalized.toUpperCase();
+    normalized.replace("=", " ");
+
+    while (normalized.indexOf("  ") >= 0) {
+        normalized.replace("  ", " ");
     }
 
     uint8_t count = 0;
     int start = 0;
 
-    while (count < maxTokens && start < input.length()) {
-        const int nextSpace = input.indexOf(' ', start);
+    while (count < maxTokens && start < normalized.length()) {
+        const int nextSpace = normalized.indexOf(' ', start);
         if (nextSpace < 0) {
-            tokens[count++] = input.substring(start);
+            tokens[count++] = normalized.substring(start);
             break;
         }
 
-        tokens[count++] = input.substring(start, nextSpace);
+        tokens[count++] = normalized.substring(start, nextSpace);
         start = nextSpace + 1;
 
-        while (start < input.length() && input.charAt(start) == ' ') {
+        while (start < normalized.length() && normalized.charAt(start) == ' ') {
             start++;
         }
     }

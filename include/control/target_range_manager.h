@@ -13,7 +13,7 @@ public:
     void printRanges() const;
 
 private:
-    TargetRanges _ranges;
+    TargetRanges _ranges = {0.0f, 0.0f, 0.0f, 0.0f};
     String _displayLine1;
     String _displayLine2;
     String _displayLine3;
@@ -26,8 +26,11 @@ private:
     void resetToDefaults();
     bool setPhRange(float minValue, float maxValue);
     bool setPpmRange(float minValue, float maxValue);
+    static bool isValidPhRange(float minValue, float maxValue);
+    static bool isValidPpmRange(float minValue, float maxValue);
+    static bool isValidRanges(const TargetRanges &ranges);
     void queueCurrentTargetsMessage();
     void setDisplayMessage(const String &line1, const String &line2, const String &line3, const String &line4);
-    static float parseNumber(String token);
-    static uint8_t tokenize(String input, String tokens[], uint8_t maxTokens);
+    static bool parseNumber(const String &token, float &outValue);
+    static uint8_t tokenize(const String &input, String tokens[], uint8_t maxTokens);
 };
