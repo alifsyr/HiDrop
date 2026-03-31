@@ -142,15 +142,6 @@ pio run -t upload
 pio device monitor -b 115200
 ```
 
-### Catatan Penting
-
-- Credential penting sekarang dibaca dari `.env` atau `.env.local` melalui `scripts/load_env.py`.
-- File `.env` dan `.env.local` sudah di-ignore oleh Git agar tidak ikut ter-push.
-- Dashboard ESP32 adalah HTTP lokal. Untuk akses lewat internet, sebaiknya gunakan `VPN`, `Cloudflare Tunnel`, reverse proxy HTTPS, atau port forwarding yang diamankan.
-- Nilai flow pump masih default dan perlu dikalibrasi di hardware asli.
-- Logging Google Sheets belum aktif sampai `GOOGLE_SHEETS_WEB_APP_URL` diisi.
-- Jika credential lama sudah pernah ter-commit, sebaiknya lakukan rotasi credential tersebut.
-
 ---
 
 ## English
@@ -258,12 +249,3 @@ pio run
 pio run -t upload
 pio device monitor -b 115200
 ```
-
-### Important Notes
-
-- Sensitive credentials are now loaded from `.env` or `.env.local` through `scripts/load_env.py`.
-- `.env` and `.env.local` are ignored by Git so they are not pushed to the public repository.
-- The built-in dashboard is plain HTTP on the local network. For internet access, prefer a secure VPN, tunnel, HTTPS reverse proxy, or carefully secured port forwarding.
-- Pump flow values are still defaults and should be calibrated on real hardware.
-- Google Sheets logging stays disabled until `GOOGLE_SHEETS_WEB_APP_URL` is configured.
-- If old credentials were already committed before, they should be rotated.
