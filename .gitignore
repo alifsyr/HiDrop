@@ -1,4 +1,5 @@
 .pio
+.pio-core/
 .env
 .env.local
 .vscode/.browse.c_cpp.db*
