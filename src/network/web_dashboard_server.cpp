@@ -292,25 +292,25 @@ const char *kDashboardPage = R"HTML(
       width: 100%;
       background: transparent;
       pointer-events: none;
-      top: -8px;
+      top: -5px;
       left: 0;
       margin: 0;
     }
     input[type=range]::-webkit-slider-thumb {
       -webkit-appearance: none;
       pointer-events: auto;
-      height: 24px;
-      width: 24px;
+      height: 18px;
+      width: 18px;
       border-radius: 50%;
       background: var(--accent);
-      border: 3px solid var(--surface);
+      border: 2px solid var(--surface);
       cursor: pointer;
-      box-shadow: 0 2px 6px rgba(13, 141, 119, 0.4);
+      box-shadow: 0 2px 4px rgba(13, 141, 119, 0.4);
       z-index: 2;
       position: relative;
     }
     input[type=range]:active::-webkit-slider-thumb {
-      transform: scale(1.1);
+      transform: scale(1.15);
       z-index: 3;
     }
     .btn {
@@ -450,9 +450,10 @@ const char *kDashboardPage = R"HTML(
             <div class="range-slider">
               <div class="range-slider-track"></div>
               <div class="range-slider-progress" id="phProgress"></div>
-              <input type="range" id="phMinSlider" min="0" max="14" step="0.1" value="5.8" oninput="updateDualSlider('ph')">
-              <input type="range" id="phMaxSlider" min="0" max="14" step="0.1" value="6.2" oninput="updateDualSlider('ph')">
+              <input type="range" id="phMinSlider" min="4.0" max="9.0" step="0.1" value="5.8" oninput="updateDualSlider(this, 'ph')" onchange="saveTarget('ph')">
+              <input type="range" id="phMaxSlider" min="4.0" max="9.0" step="0.1" value="6.2" oninput="updateDualSlider(this, 'ph')" onchange="saveTarget('ph')">
             </div>
+            <div id="phSaveStatus" style="margin-top: 8px; font-size: 0.85rem; color: var(--ok); display: none;">Saved!</div>
           </div>
         </div>
         <div>
@@ -464,14 +465,13 @@ const char *kDashboardPage = R"HTML(
             <div class="range-slider">
               <div class="range-slider-track"></div>
               <div class="range-slider-progress" id="ppmProgress"></div>
-              <input type="range" id="ppmMinSlider" min="0" max="2000" step="10" value="600" oninput="updateDualSlider('ppm')">
-              <input type="range" id="ppmMaxSlider" min="0" max="2000" step="10" value="800" oninput="updateDualSlider('ppm')">
+              <input type="range" id="ppmMinSlider" min="500" max="4000" step="50" value="600" oninput="updateDualSlider(this, 'ppm')" onchange="saveTarget('ppm')">
+              <input type="range" id="ppmMaxSlider" min="500" max="4000" step="50" value="800" oninput="updateDualSlider(this, 'ppm')" onchange="saveTarget('ppm')">
             </div>
+            <div id="ppmSaveStatus" style="margin-top: 8px; font-size: 0.85rem; color: var(--ok); display: none;">Saved!</div>
           </div>
         </div>
       </div>
-      <button id="saveTargetsBtn" class="btn" style="margin-top: 16px;" onclick="saveTargets()">Save Targets</button>
-      <div id="saveTargetsStatus" style="margin-top: 8px; font-size: 0.9rem; text-align: center; color: var(--ok); display: none;">Saved successfully!</div>
     </section>
 
     <section class="panel" style="margin-top:18px">
@@ -754,14 +754,14 @@ const char *kDashboardPage = R"HTML(
         document.getElementById('phMaxSlider').value = data.targets.ph_max;
         document.getElementById('ppmMinSlider').value = data.targets.ppm_min;
         document.getElementById('ppmMaxSlider').value = data.targets.ppm_max;
-        updateDualSlider('ph');
-        updateDualSlider('ppm');
+        updateDualSlider(null, 'ph');
+        updateDualSlider(null, 'ppm');
       }
       
       renderHistory();
     }
 
-    function updateDualSlider(prefix) {
+    function updateDualSlider(triggerEl, prefix) {
       const minSlider = document.getElementById(prefix + 'MinSlider');
       const maxSlider = document.getElementById(prefix + 'MaxSlider');
       const minVal = document.getElementById(prefix + 'MinVal');
@@ -770,15 +770,17 @@ const char *kDashboardPage = R"HTML(
 
       let min = parseFloat(minSlider.value);
       let max = parseFloat(maxSlider.value);
-      const step = parseFloat(minSlider.step);
+      
+      // Use larger gap for PPM
+      const minGap = prefix === 'ph' ? 0.2 : 150;
 
-      if (min > max - step) {
-        if (event && event.target === minSlider) {
-          minSlider.value = (max - step).toString();
-          min = max - step;
+      if (min > max - minGap) {
+        if (triggerEl === minSlider) {
+          minSlider.value = (max - minGap).toString();
+          min = max - minGap;
         } else {
-          maxSlider.value = (min + step).toString();
-          max = min + step;
+          maxSlider.value = (min + minGap).toString();
+          max = min + minGap;
         }
       }
 
@@ -844,39 +846,29 @@ const char *kDashboardPage = R"HTML(
       }
     });
 
-    async function saveTargets() {
-      const btn = document.getElementById('saveTargetsBtn');
-      const status = document.getElementById('saveTargetsStatus');
-      btn.disabled = true;
-      btn.textContent = 'Saving...';
+    async function saveTarget(prefix) {
+      const status = document.getElementById(prefix + 'SaveStatus');
       
-      const body = new URLSearchParams({
-        ph_min: document.getElementById('phMinSlider').value,
-        ph_max: document.getElementById('phMaxSlider').value,
-        ppm_min: document.getElementById('ppmMinSlider').value,
-        ppm_max: document.getElementById('ppmMaxSlider').value
-      });
+      const body = new URLSearchParams();
+      body.append(prefix + '_min', document.getElementById(prefix + 'MinSlider').value);
+      body.append(prefix + '_max', document.getElementById(prefix + 'MaxSlider').value);
 
       try {
-        const response = await fetch('/api/settings/targets', {
+        const response = await fetch('/api/settings/target_' + prefix, {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: body
         });
         if (!response.ok) throw new Error('Failed to save');
-        status.textContent = 'Saved successfully!';
+        status.textContent = 'Saved!';
         status.style.color = 'var(--ok)';
         status.style.display = 'block';
-        setTimeout(() => status.style.display = 'none', 3000);
-        refreshStatus();
-      } catch (err) {
-        status.textContent = err.message;
+        setTimeout(() => { status.style.display = 'none'; }, 2000);
+      } catch (error) {
+        status.textContent = 'Error saving';
         status.style.color = 'var(--danger)';
         status.style.display = 'block';
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Save Targets';
-        isEditingTargets = false;
+        setTimeout(() => { status.style.display = 'none'; }, 2000);
       }
     }
 
@@ -1080,7 +1072,8 @@ void WebDashboardServer::registerRoutes() {
     _server.on("/api/status", HTTP_GET, [this]() { handleStatus(); });
     _server.on("/api/history", HTTP_GET, [this]() { handleHistory(); });
     _server.on("/api/reports", HTTP_GET, [this]() { handleReports(); });
-    _server.on("/api/settings/targets", HTTP_POST, [this]() { handleSetTargets(); });
+    _server.on("/api/settings/target_ph", HTTP_POST, [this]() { handleSetTargetPh(); });
+    _server.on("/api/settings/target_ppm", HTTP_POST, [this]() { handleSetTargetPpm(); });
     _server.on("/api/update/check", HTTP_POST, [this]() { handleOtaCheck(); });
     _server.on("/api/update/start", HTTP_POST, [this]() { handleOtaStart(); });
     _server.onNotFound([this]() {
@@ -1107,21 +1100,38 @@ void WebDashboardServer::handleReports() {
     _server.send(200, "application/json; charset=utf-8", buildRecentReportsJson());
 }
 
-void WebDashboardServer::handleSetTargets() {
-    if (!_server.hasArg("ph_min") || !_server.hasArg("ph_max") ||
-        !_server.hasArg("ppm_min") || !_server.hasArg("ppm_max")) {
+void WebDashboardServer::handleSetTargetPh() {
+    if (!_server.hasArg("ph_min") || !_server.hasArg("ph_max")) {
         _server.send(400, "application/json", "{\"error\":\"missing_arguments\"}");
         return;
     }
 
     const String phMin = _server.arg("ph_min");
     const String phMax = _server.arg("ph_max");
+
+    bool success = true;
+    if (_commandCallback) {
+        if (!_commandCallback("SET PH " + phMin + " " + phMax)) success = false;
+    }
+
+    if (success) {
+        _server.send(200, "application/json", "{\"success\":true}");
+    } else {
+        _server.send(400, "application/json", "{\"error\":\"invalid_values\"}");
+    }
+}
+
+void WebDashboardServer::handleSetTargetPpm() {
+    if (!_server.hasArg("ppm_min") || !_server.hasArg("ppm_max")) {
+        _server.send(400, "application/json", "{\"error\":\"missing_arguments\"}");
+        return;
+    }
+
     const String ppmMin = _server.arg("ppm_min");
     const String ppmMax = _server.arg("ppm_max");
 
     bool success = true;
     if (_commandCallback) {
-        if (!_commandCallback("SET PH " + phMin + " " + phMax)) success = false;
         if (!_commandCallback("SET PPM " + ppmMin + " " + ppmMax)) success = false;
     }
 
