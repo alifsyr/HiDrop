@@ -292,25 +292,25 @@ const char *kDashboardPage = R"HTML(
       width: 100%;
       background: transparent;
       pointer-events: none;
-      top: -8px;
+      top: -5px;
       left: 0;
       margin: 0;
     }
     input[type=range]::-webkit-slider-thumb {
       -webkit-appearance: none;
       pointer-events: auto;
-      height: 24px;
-      width: 24px;
+      height: 18px;
+      width: 18px;
       border-radius: 50%;
       background: var(--accent);
-      border: 3px solid var(--surface);
+      border: 2px solid var(--surface);
       cursor: pointer;
-      box-shadow: 0 2px 6px rgba(13, 141, 119, 0.4);
+      box-shadow: 0 2px 4px rgba(13, 141, 119, 0.4);
       z-index: 2;
       position: relative;
     }
     input[type=range]:active::-webkit-slider-thumb {
-      transform: scale(1.1);
+      transform: scale(1.15);
       z-index: 3;
     }
     .btn {
@@ -450,8 +450,8 @@ const char *kDashboardPage = R"HTML(
             <div class="range-slider">
               <div class="range-slider-track"></div>
               <div class="range-slider-progress" id="phProgress"></div>
-              <input type="range" id="phMinSlider" min="0" max="14" step="0.1" value="5.8" oninput="updateDualSlider(this, 'ph')" onchange="saveTarget('ph')">
-              <input type="range" id="phMaxSlider" min="0" max="14" step="0.1" value="6.2" oninput="updateDualSlider(this, 'ph')" onchange="saveTarget('ph')">
+              <input type="range" id="phMinSlider" min="4.0" max="8.0" step="0.1" value="5.8" oninput="updateDualSlider(this, 'ph')" onchange="saveTarget('ph')">
+              <input type="range" id="phMaxSlider" min="4.0" max="8.0" step="0.1" value="6.2" oninput="updateDualSlider(this, 'ph')" onchange="saveTarget('ph')">
             </div>
             <div id="phSaveStatus" style="margin-top: 8px; font-size: 0.85rem; color: var(--ok); display: none;">Saved!</div>
           </div>
@@ -465,8 +465,8 @@ const char *kDashboardPage = R"HTML(
             <div class="range-slider">
               <div class="range-slider-track"></div>
               <div class="range-slider-progress" id="ppmProgress"></div>
-              <input type="range" id="ppmMinSlider" min="0" max="2000" step="10" value="600" oninput="updateDualSlider(this, 'ppm')" onchange="saveTarget('ppm')">
-              <input type="range" id="ppmMaxSlider" min="0" max="2000" step="10" value="800" oninput="updateDualSlider(this, 'ppm')" onchange="saveTarget('ppm')">
+              <input type="range" id="ppmMinSlider" min="400" max="1600" step="50" value="600" oninput="updateDualSlider(this, 'ppm')" onchange="saveTarget('ppm')">
+              <input type="range" id="ppmMaxSlider" min="400" max="1600" step="50" value="800" oninput="updateDualSlider(this, 'ppm')" onchange="saveTarget('ppm')">
             </div>
             <div id="ppmSaveStatus" style="margin-top: 8px; font-size: 0.85rem; color: var(--ok); display: none;">Saved!</div>
           </div>
