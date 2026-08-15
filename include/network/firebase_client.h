@@ -1,20 +1,19 @@
 #pragma once
 
 #include <Arduino.h>
-#include <WebServer.h>
 #include <time.h>
+#include <Firebase_ESP_Client.h>
 
 #include "models/display_mode.h"
 #include "models/dosing_report.h"
 #include "models/sensor_data.h"
 #include "models/target_ranges.h"
-#include "network/ota_updater.h"
 
-class WebDashboardServer {
+class FirebaseClient {
 public:
     typedef std::function<bool(const String&)> CommandCallback;
 
-    WebDashboardServer();
+    FirebaseClient();
 
     void begin();
     void update(
@@ -32,10 +31,8 @@ public:
     void handleClient();
     void addCompletedReport(const DosingReport &report);
     void setCommandCallback(CommandCallback cb);
-    void setOtaUpdater(OtaUpdater* updater);
 
 private:
-    static constexpr size_t kRecentReportsSize = 6;
     static constexpr size_t kHistorySamplesSize = 48;
 
     struct Snapshot {
@@ -59,16 +56,17 @@ private:
         uint16_t ppm = 0;
     };
 
-    WebServer _server;
-    String _cachedHtmlPage;
+    FirebaseData _fbdo;
+    FirebaseAuth _auth;
+    FirebaseConfig _config;
+    bool _firebaseReady;
+
     Snapshot _snapshot;
-    DosingReport _recentReports[kRecentReportsSize];
     HistorySample _historySamples[kHistorySamplesSize];
-    size_t _recentReportCount;
-    size_t _recentReportHead;
     size_t _historySampleCount;
     size_t _historySampleHead;
     unsigned long _lastHistorySampleMs;
+    unsigned long _lastFirebaseUpdateMs;
     bool _wasWifiConnected;
     CommandCallback _commandCallback;
     OtaUpdater* _otaUpdater;
@@ -87,8 +85,11 @@ private:
     String buildRecentReportsJson() const;
     String buildHistoryJson() const;
     void addHistorySample(const SensorData &sensorData);
+    void sendStatusToFirebase();
+    void sendHistoryToFirebase();
+    void checkIncomingCommands();
+    
     static void safeCopy(char *destination, size_t destinationSize, const char *source);
-    static String escapeJson(const String &value);
     static const char *displayModeLabel(DisplayMode mode);
     static uint16_t encodePhX100(float phValue);
     static uint16_t encodePpm(float ppmValue);
