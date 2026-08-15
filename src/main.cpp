@@ -70,6 +70,9 @@ void setup() {
     wifiClock.begin();
     dosingController.begin();
     sheetsLogger.begin();
+    webDashboardServer.setCommandCallback([](const String &cmd) {
+        return targetRangeManager.handleCommand(cmd);
+    });
     webDashboardServer.begin();
 
     Serial.println();

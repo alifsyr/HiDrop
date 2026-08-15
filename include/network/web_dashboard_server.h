@@ -11,6 +11,8 @@
 
 class WebDashboardServer {
 public:
+    typedef std::function<bool(const String&)> CommandCallback;
+
     WebDashboardServer();
 
     void begin();
@@ -28,6 +30,7 @@ public:
     );
     void handleClient();
     void addCompletedReport(const DosingReport &report);
+    void setCommandCallback(CommandCallback cb);
 
 private:
     static constexpr size_t kRecentReportsSize = 6;
@@ -65,12 +68,14 @@ private:
     size_t _historySampleHead;
     unsigned long _lastHistorySampleMs;
     bool _wasWifiConnected;
+    CommandCallback _commandCallback;
 
     void registerRoutes();
     void handleRoot();
     void handleStatus();
     void handleHistory();
     void handleReports();
+    void handleSetTargets();
     String buildHtmlPage() const;
     String buildStatusJson() const;
     String buildRecentReportsJson() const;

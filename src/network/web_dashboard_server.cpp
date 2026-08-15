@@ -245,6 +245,67 @@ const char *kDashboardPage = R"HTML(
       color: var(--text);
     }
 
+    /* Slider Styles */
+    .slider-group {
+      margin-bottom: 20px;
+    }
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .slider-label {
+      font-weight: 600;
+      color: var(--text);
+    }
+    .slider-value {
+      font-family: var(--mono);
+      color: var(--accent);
+      font-weight: 700;
+    }
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 100%;
+      background: transparent;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      height: 24px;
+      width: 24px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      margin-top: -8px;
+      box-shadow: 0 2px 6px rgba(13, 141, 119, 0.4);
+    }
+    input[type=range]::-webkit-slider-runnable-track {
+      width: 100%;
+      height: 8px;
+      cursor: pointer;
+      background: rgba(13, 141, 119, 0.2);
+      border-radius: 4px;
+    }
+    .btn {
+      display: inline-block;
+      padding: 12px 24px;
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      width: 100%;
+    }
+    .btn:hover {
+      background: #0a6c5b;
+    }
+    .btn:disabled {
+      background: var(--muted);
+      cursor: not-allowed;
+    }
+
     @media (max-width: 860px) {
       .chart-grid {
         grid-template-columns: 1fr;
@@ -335,6 +396,49 @@ const char *kDashboardPage = R"HTML(
           <span id="ppmChartLatest" class="chart-stat">-</span>
         </div>
       </article>
+    </section>
+
+    <section class="panel" style="margin-top:18px">
+      <div class="section-head">
+        <h2>Target Settings</h2>
+        <span class="meta">Adjust dosing targets</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px;">
+        <div>
+          <div class="slider-group">
+            <div class="slider-header">
+              <span class="slider-label">pH Minimum</span>
+              <span class="slider-value" id="phMinVal">-</span>
+            </div>
+            <input type="range" id="phMinSlider" min="0" max="14" step="0.1" value="5.8" oninput="document.getElementById('phMinVal').textContent = Number(this.value).toFixed(2)">
+          </div>
+          <div class="slider-group">
+            <div class="slider-header">
+              <span class="slider-label">pH Maximum</span>
+              <span class="slider-value" id="phMaxVal">-</span>
+            </div>
+            <input type="range" id="phMaxSlider" min="0" max="14" step="0.1" value="6.2" oninput="document.getElementById('phMaxVal').textContent = Number(this.value).toFixed(2)">
+          </div>
+        </div>
+        <div>
+          <div class="slider-group">
+            <div class="slider-header">
+              <span class="slider-label">PPM Minimum</span>
+              <span class="slider-value" id="ppmMinVal">-</span>
+            </div>
+            <input type="range" id="ppmMinSlider" min="0" max="2000" step="10" value="600" oninput="document.getElementById('ppmMinVal').textContent = this.value">
+          </div>
+          <div class="slider-group">
+            <div class="slider-header">
+              <span class="slider-label">PPM Maximum</span>
+              <span class="slider-value" id="ppmMaxVal">-</span>
+            </div>
+            <input type="range" id="ppmMaxSlider" min="0" max="2000" step="10" value="800" oninput="document.getElementById('ppmMaxVal').textContent = this.value">
+          </div>
+        </div>
+      </div>
+      <button id="saveTargetsBtn" class="btn" style="margin-top: 16px;" onclick="saveTargets()">Save Targets</button>
+      <div id="saveTargetsStatus" style="margin-top: 8px; font-size: 0.9rem; text-align: center; color: var(--ok); display: none;">Saved successfully!</div>
     </section>
 
     <section class="panel" style="margin-top:18px">
@@ -588,6 +692,18 @@ const char *kDashboardPage = R"HTML(
       document.getElementById("ppmMeta").textContent = `Target: ${formatNumber(data?.targets?.ppm_min, 0)} - ${formatNumber(data?.targets?.ppm_max, 0)}`;
       document.getElementById("tempMeta").textContent = `Voltage pH probe: ${formatNumber(data?.sensor?.ph_voltage, 3)} V`;
       document.getElementById("dosingMeta").textContent = `Mode: ${data?.dosing?.display_mode || "-"} | Busy: ${data?.dosing?.busy ? "YES" : "NO"}`;
+      
+      if (!isEditingTargets && data?.targets) {
+        document.getElementById('phMinSlider').value = data.targets.ph_min;
+        document.getElementById('phMinVal').textContent = formatNumber(data.targets.ph_min, 2);
+        document.getElementById('phMaxSlider').value = data.targets.ph_max;
+        document.getElementById('phMaxVal').textContent = formatNumber(data.targets.ph_max, 2);
+        document.getElementById('ppmMinSlider').value = data.targets.ppm_min;
+        document.getElementById('ppmMinVal').textContent = formatNumber(data.targets.ppm_min, 0);
+        document.getElementById('ppmMaxSlider').value = data.targets.ppm_max;
+        document.getElementById('ppmMaxVal').textContent = formatNumber(data.targets.ppm_max, 0);
+      }
+      
       renderHistory();
     }
 
@@ -631,6 +747,53 @@ const char *kDashboardPage = R"HTML(
       }
     }
 
+    let isEditingTargets = false;
+    const targetSliders = ['phMinSlider', 'phMaxSlider', 'ppmMinSlider', 'ppmMaxSlider'];
+    targetSliders.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('mousedown', () => isEditingTargets = true);
+        el.addEventListener('touchstart', () => isEditingTargets = true, {passive: true});
+        el.addEventListener('change', () => isEditingTargets = false);
+      }
+    });
+
+    async function saveTargets() {
+      const btn = document.getElementById('saveTargetsBtn');
+      const status = document.getElementById('saveTargetsStatus');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+      
+      const body = new URLSearchParams({
+        ph_min: document.getElementById('phMinSlider').value,
+        ph_max: document.getElementById('phMaxSlider').value,
+        ppm_min: document.getElementById('ppmMinSlider').value,
+        ppm_max: document.getElementById('ppmMaxSlider').value
+      });
+
+      try {
+        const response = await fetch('/api/settings/targets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: body
+        });
+        if (!response.ok) throw new Error('Failed to save');
+        status.textContent = 'Saved successfully!';
+        status.style.color = 'var(--ok)';
+        status.style.display = 'block';
+        setTimeout(() => status.style.display = 'none', 3000);
+        refreshStatus();
+      } catch (err) {
+        status.textContent = err.message;
+        status.style.color = 'var(--danger)';
+        status.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save Targets';
+        isEditingTargets = false;
+      }
+    }
+
     refreshStatus();
     refreshHistory();
     refreshReports();
@@ -662,6 +825,10 @@ void WebDashboardServer::begin() {
     _server.begin();
     Serial.print("Web dashboard listening on port ");
     Serial.println(AppConfig::WEB_SERVER_PORT);
+}
+
+void WebDashboardServer::setCommandCallback(CommandCallback cb) {
+    _commandCallback = cb;
 }
 
 void WebDashboardServer::update(
@@ -746,6 +913,7 @@ void WebDashboardServer::registerRoutes() {
     _server.on("/api/status", HTTP_GET, [this]() { handleStatus(); });
     _server.on("/api/history", HTTP_GET, [this]() { handleHistory(); });
     _server.on("/api/reports", HTTP_GET, [this]() { handleReports(); });
+    _server.on("/api/settings/targets", HTTP_POST, [this]() { handleSetTargets(); });
     _server.onNotFound([this]() {
         _server.send(404, "application/json", "{\"error\":\"not_found\"}");
     });
@@ -768,6 +936,31 @@ void WebDashboardServer::handleHistory() {
 void WebDashboardServer::handleReports() {
     _server.sendHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
     _server.send(200, "application/json; charset=utf-8", buildRecentReportsJson());
+}
+
+void WebDashboardServer::handleSetTargets() {
+    if (!_server.hasArg("ph_min") || !_server.hasArg("ph_max") ||
+        !_server.hasArg("ppm_min") || !_server.hasArg("ppm_max")) {
+        _server.send(400, "application/json", "{\"error\":\"missing_arguments\"}");
+        return;
+    }
+
+    const String phMin = _server.arg("ph_min");
+    const String phMax = _server.arg("ph_max");
+    const String ppmMin = _server.arg("ppm_min");
+    const String ppmMax = _server.arg("ppm_max");
+
+    bool success = true;
+    if (_commandCallback) {
+        if (!_commandCallback("SET PH " + phMin + " " + phMax)) success = false;
+        if (!_commandCallback("SET PPM " + ppmMin + " " + ppmMax)) success = false;
+    }
+
+    if (success) {
+        _server.send(200, "application/json", "{\"success\":true}");
+    } else {
+        _server.send(400, "application/json", "{\"error\":\"invalid_values\"}");
+    }
 }
 
 String WebDashboardServer::buildHtmlPage() const {
