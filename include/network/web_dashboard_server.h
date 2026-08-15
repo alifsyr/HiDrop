@@ -78,7 +78,8 @@ private:
     void handleStatus();
     void handleHistory();
     void handleReports();
-    void handleSetTargets();
+    void handleSetTargetPh();
+    void handleSetTargetPpm();
     void handleOtaCheck();
     void handleOtaStart();
     String buildHtmlPage() const;
