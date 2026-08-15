@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Arduino.h>
+#include "config/app_config.h"
 
 class OtaUpdater {
 public:

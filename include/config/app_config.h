@@ -22,6 +22,10 @@
 #define APP_GOOGLE_SHEETS_LOGGING_ENABLED false
 #endif
 
+#ifndef FIRMWARE_VERSION
+#define FIRMWARE_VERSION "1.0.0-dev"
+#endif
+
 namespace AppConfig {
     constexpr float ADC_VREF = 3.3f;
     constexpr float ADC_RANGE = 4095.0f;
