@@ -247,12 +247,12 @@ const char *kDashboardPage = R"HTML(
 
     /* Slider Styles */
     .slider-group {
-      margin-bottom: 20px;
+      margin-bottom: 24px;
     }
     .slider-header {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 8px;
+      margin-bottom: 12px;
     }
     .slider-label {
       font-weight: 600;
@@ -263,27 +263,55 @@ const char *kDashboardPage = R"HTML(
       color: var(--accent);
       font-weight: 700;
     }
+    .range-slider {
+      position: relative;
+      width: 100%;
+      height: 8px;
+      margin-top: 10px;
+      margin-bottom: 20px;
+    }
+    .range-slider-track {
+      position: absolute;
+      width: 100%;
+      height: 8px;
+      background: rgba(13, 141, 119, 0.2);
+      border-radius: 4px;
+      top: 0;
+      left: 0;
+    }
+    .range-slider-progress {
+      position: absolute;
+      height: 8px;
+      background: var(--accent);
+      border-radius: 4px;
+      top: 0;
+    }
     input[type=range] {
       -webkit-appearance: none;
+      position: absolute;
       width: 100%;
       background: transparent;
+      pointer-events: none;
+      top: -8px;
+      left: 0;
+      margin: 0;
     }
     input[type=range]::-webkit-slider-thumb {
       -webkit-appearance: none;
+      pointer-events: auto;
       height: 24px;
       width: 24px;
       border-radius: 50%;
       background: var(--accent);
+      border: 3px solid var(--surface);
       cursor: pointer;
-      margin-top: -8px;
       box-shadow: 0 2px 6px rgba(13, 141, 119, 0.4);
+      z-index: 2;
+      position: relative;
     }
-    input[type=range]::-webkit-slider-runnable-track {
-      width: 100%;
-      height: 8px;
-      cursor: pointer;
-      background: rgba(13, 141, 119, 0.2);
-      border-radius: 4px;
+    input[type=range]:active::-webkit-slider-thumb {
+      transform: scale(1.1);
+      z-index: 3;
     }
     .btn {
       display: inline-block;
@@ -416,33 +444,29 @@ const char *kDashboardPage = R"HTML(
         <div>
           <div class="slider-group">
             <div class="slider-header">
-              <span class="slider-label">pH Minimum</span>
-              <span class="slider-value" id="phMinVal">-</span>
+              <span class="slider-label">pH Target Range</span>
+              <span class="slider-value"><span id="phMinVal">-</span> - <span id="phMaxVal">-</span></span>
             </div>
-            <input type="range" id="phMinSlider" min="0" max="14" step="0.1" value="5.8" oninput="document.getElementById('phMinVal').textContent = Number(this.value).toFixed(2)">
-          </div>
-          <div class="slider-group">
-            <div class="slider-header">
-              <span class="slider-label">pH Maximum</span>
-              <span class="slider-value" id="phMaxVal">-</span>
+            <div class="range-slider">
+              <div class="range-slider-track"></div>
+              <div class="range-slider-progress" id="phProgress"></div>
+              <input type="range" id="phMinSlider" min="0" max="14" step="0.1" value="5.8" oninput="updateDualSlider('ph')">
+              <input type="range" id="phMaxSlider" min="0" max="14" step="0.1" value="6.2" oninput="updateDualSlider('ph')">
             </div>
-            <input type="range" id="phMaxSlider" min="0" max="14" step="0.1" value="6.2" oninput="document.getElementById('phMaxVal').textContent = Number(this.value).toFixed(2)">
           </div>
         </div>
         <div>
           <div class="slider-group">
             <div class="slider-header">
-              <span class="slider-label">PPM Minimum</span>
-              <span class="slider-value" id="ppmMinVal">-</span>
+              <span class="slider-label">PPM Target Range</span>
+              <span class="slider-value"><span id="ppmMinVal">-</span> - <span id="ppmMaxVal">-</span></span>
             </div>
-            <input type="range" id="ppmMinSlider" min="0" max="2000" step="10" value="600" oninput="document.getElementById('ppmMinVal').textContent = this.value">
-          </div>
-          <div class="slider-group">
-            <div class="slider-header">
-              <span class="slider-label">PPM Maximum</span>
-              <span class="slider-value" id="ppmMaxVal">-</span>
+            <div class="range-slider">
+              <div class="range-slider-track"></div>
+              <div class="range-slider-progress" id="ppmProgress"></div>
+              <input type="range" id="ppmMinSlider" min="0" max="2000" step="10" value="600" oninput="updateDualSlider('ppm')">
+              <input type="range" id="ppmMaxSlider" min="0" max="2000" step="10" value="800" oninput="updateDualSlider('ppm')">
             </div>
-            <input type="range" id="ppmMaxSlider" min="0" max="2000" step="10" value="800" oninput="document.getElementById('ppmMaxVal').textContent = this.value">
           </div>
         </div>
       </div>
@@ -727,16 +751,46 @@ const char *kDashboardPage = R"HTML(
       
       if (!isEditingTargets && data?.targets) {
         document.getElementById('phMinSlider').value = data.targets.ph_min;
-        document.getElementById('phMinVal').textContent = formatNumber(data.targets.ph_min, 2);
         document.getElementById('phMaxSlider').value = data.targets.ph_max;
-        document.getElementById('phMaxVal').textContent = formatNumber(data.targets.ph_max, 2);
         document.getElementById('ppmMinSlider').value = data.targets.ppm_min;
-        document.getElementById('ppmMinVal').textContent = formatNumber(data.targets.ppm_min, 0);
         document.getElementById('ppmMaxSlider').value = data.targets.ppm_max;
-        document.getElementById('ppmMaxVal').textContent = formatNumber(data.targets.ppm_max, 0);
+        updateDualSlider('ph');
+        updateDualSlider('ppm');
       }
       
       renderHistory();
+    }
+
+    function updateDualSlider(prefix) {
+      const minSlider = document.getElementById(prefix + 'MinSlider');
+      const maxSlider = document.getElementById(prefix + 'MaxSlider');
+      const minVal = document.getElementById(prefix + 'MinVal');
+      const maxVal = document.getElementById(prefix + 'MaxVal');
+      const progress = document.getElementById(prefix + 'Progress');
+
+      let min = parseFloat(minSlider.value);
+      let max = parseFloat(maxSlider.value);
+      const step = parseFloat(minSlider.step);
+
+      if (min > max - step) {
+        if (event && event.target === minSlider) {
+          minSlider.value = (max - step).toString();
+          min = max - step;
+        } else {
+          maxSlider.value = (min + step).toString();
+          max = min + step;
+        }
+      }
+
+      minVal.textContent = prefix === 'ph' ? min.toFixed(2) : min.toString();
+      maxVal.textContent = prefix === 'ph' ? max.toFixed(2) : max.toString();
+
+      const total = minSlider.max - minSlider.min;
+      const leftPercent = ((min - minSlider.min) / total) * 100;
+      const widthPercent = ((max - min) / total) * 100;
+
+      progress.style.left = leftPercent + '%';
+      progress.style.width = widthPercent + '%';
     }
 
     function applyHistory(data) {
