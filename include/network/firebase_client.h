@@ -69,7 +69,21 @@ private:
     unsigned long _lastFirebaseUpdateMs;
     bool _wasWifiConnected;
     CommandCallback _commandCallback;
+    OtaUpdater* _otaUpdater;
 
+    void registerRoutes();
+    void handleRoot();
+    void handleStatus();
+    void handleHistory();
+    void handleReports();
+    void handleSetTargetPh();
+    void handleSetTargetPpm();
+    void handleOtaCheck();
+    void handleOtaStart();
+    String buildHtmlPage() const;
+    String buildStatusJson() const;
+    String buildRecentReportsJson() const;
+    String buildHistoryJson() const;
     void addHistorySample(const SensorData &sensorData);
     void sendStatusToFirebase();
     void sendHistoryToFirebase();
