@@ -1,10 +1,18 @@
 #include "control/dosing_controller.h"
 
+#include <algorithm>
+
 #include "config/app_config.h"
 #include "config/pins.h"
 
 namespace {
 constexpr unsigned long kMinRelayOnMs = 500;
+constexpr uint8_t kRelayOnLevel = AppConfig::RELAY_ACTIVE_LOW ? LOW : HIGH;
+constexpr uint8_t kRelayOffLevel = AppConfig::RELAY_ACTIVE_LOW ? HIGH : LOW;
+
+bool isDeadlineReached(unsigned long nowMs, unsigned long deadlineMs) {
+    return static_cast<long>(nowMs - deadlineMs) >= 0;
+}
 }
 
 DosingController::DosingController()
@@ -46,7 +54,11 @@ void DosingController::update(
 
     switch (_state) {
         case State::IDLE: {
-            if (now < _startupReadyMs || now < _cooldownUntilMs) {
+            const bool startupReady = isDeadlineReached(now, _startupReadyMs);
+            const bool cooldownDone =
+                (_cooldownUntilMs == 0UL) || isDeadlineReached(now, _cooldownUntilMs);
+
+            if (!startupReady || !cooldownDone) {
                 return;
             }
 
@@ -66,12 +78,7 @@ void DosingController::update(
 
             if (action == Action::DOSE_NUTRIENTS) {
                 _nutrientCycles++;
-                startRelayState(
-                    State::DOSING_NUTRI_A,
-                    Pins::RELAY_NUTRI_A,
-                    AppConfig::NUTRI_A_DOSE_STEP_ML,
-                    "Dosing Nutrient A"
-                );
+                startNutrientDoseState("Dosing Nutrient A + B together");
                 return;
             }
 
@@ -98,32 +105,13 @@ void DosingController::update(
             return;
         }
 
-        case State::DOSING_NUTRI_A:
-            if (now - _stateStartedMs >= doseDurationMs(AppConfig::NUTRI_A_DOSE_STEP_ML, AppConfig::NUTRI_A_FLOW_ML_PER_SEC)) {
+        case State::DOSING_NUTRIENTS:
+            if (now - _stateStartedMs >= nutrientDoseDurationMs()) {
                 setRelay(Pins::RELAY_NUTRI_A, false);
-                _state = State::PAUSE_BEFORE_NUTRI_B;
-                _stateStartedMs = now;
-                Serial.println("Nutrient A dose complete.");
-            }
-            return;
-
-        case State::PAUSE_BEFORE_NUTRI_B:
-            if (now - _stateStartedMs >= AppConfig::AUTODOSE_INTER_PUMP_DELAY_MS) {
-                startRelayState(
-                    State::DOSING_NUTRI_B,
-                    Pins::RELAY_NUTRI_B,
-                    AppConfig::NUTRI_B_DOSE_STEP_ML,
-                    "Dosing Nutrient B"
-                );
-            }
-            return;
-
-        case State::DOSING_NUTRI_B:
-            if (now - _stateStartedMs >= doseDurationMs(AppConfig::NUTRI_B_DOSE_STEP_ML, AppConfig::NUTRI_B_FLOW_ML_PER_SEC)) {
                 setRelay(Pins::RELAY_NUTRI_B, false);
                 _state = State::WAITING_RECHECK;
                 _stateStartedMs = now;
-                Serial.println("Nutrient B dose complete. Waiting for solution mixing.");
+                Serial.println("Nutrient A + B dose complete. Waiting for solution mixing.");
             }
             return;
 
@@ -169,12 +157,7 @@ void DosingController::update(
                 }
 
                 _nutrientCycles++;
-                startRelayState(
-                    State::DOSING_NUTRI_A,
-                    Pins::RELAY_NUTRI_A,
-                    AppConfig::NUTRI_A_DOSE_STEP_ML,
-                    "Continuing nutrient correction with Nutrient A"
-                );
+                startNutrientDoseState("Continuing nutrient correction with Nutrient A + B together");
                 return;
             }
 
@@ -216,6 +199,57 @@ bool DosingController::isBusy() const {
     return _state != State::IDLE;
 }
 
+DisplayMode DosingController::getDisplayMode() const {
+    switch (_state) {
+        case State::DOSING_NUTRIENTS:
+            return DisplayMode::NUTRI_AB;
+
+        case State::DOSING_PH_DOWN:
+            return DisplayMode::PH_DOWN_DOSE;
+
+        case State::DOSING_PH_UP:
+            return DisplayMode::PH_UP_DOSE;
+
+        case State::WAITING_RECHECK:
+            switch (_pendingAction) {
+                case Action::DOSE_NUTRIENTS:
+                    return DisplayMode::NUTRI_AB_WAIT;
+                case Action::DOSE_PH_DOWN:
+                    return DisplayMode::PH_DOWN_WAIT;
+                case Action::DOSE_PH_UP:
+                    return DisplayMode::PH_UP_WAIT;
+                case Action::MANUAL_DILUTION_REQUIRED:
+                case Action::NONE:
+                default:
+                    return DisplayMode::NORMAL;
+            }
+
+        case State::IDLE:
+        default:
+            return DisplayMode::NORMAL;
+    }
+}
+
+const char *DosingController::getStateLabel() const {
+    switch (_state) {
+        case State::DOSING_NUTRIENTS:
+            return "Dosing Nutrient A+B";
+
+        case State::DOSING_PH_DOWN:
+            return "Dosing pH Down";
+
+        case State::DOSING_PH_UP:
+            return "Dosing pH Up";
+
+        case State::WAITING_RECHECK:
+            return "Waiting for Recheck";
+
+        case State::IDLE:
+        default:
+            return "Monitoring";
+    }
+}
+
 bool DosingController::consumeCompletedReport(DosingReport &report) {
     if (!_hasCompletedReport) {
         return false;
@@ -255,6 +289,26 @@ unsigned long DosingController::doseDurationMs(float ml, float flowMlPerSecond) 
     return duration < kMinRelayOnMs ? kMinRelayOnMs : duration;
 }
 
+unsigned long DosingController::nutrientDoseDurationMs() const {
+    const unsigned long durationA = doseDurationMs(
+        AppConfig::NUTRI_A_DOSE_STEP_ML,
+        AppConfig::NUTRI_A_FLOW_ML_PER_SEC
+    );
+    const unsigned long durationB = doseDurationMs(
+        AppConfig::NUTRI_B_DOSE_STEP_ML,
+        AppConfig::NUTRI_B_FLOW_ML_PER_SEC
+    );
+    return std::max(durationA, durationB);
+}
+
+float DosingController::deliveredMlForDuration(float flowMlPerSecond, unsigned long durationMs) const {
+    if (flowMlPerSecond <= 0.0f || durationMs == 0) {
+        return 0.0f;
+    }
+
+    return flowMlPerSecond * (static_cast<float>(durationMs) / 1000.0f);
+}
+
 void DosingController::startEvent(const SensorData &data, const struct tm *localTime, bool timeValid) {
     _activeReport = DosingReport();
     _activeReport.temperatureC = data.temperatureC;
@@ -290,6 +344,19 @@ void DosingController::finalizeEvent(const SensorData &data, const char *reason)
     Serial.println(reason);
 }
 
+void DosingController::startNutrientDoseState(const char *label) {
+    const unsigned long durationMs = nutrientDoseDurationMs();
+
+    setRelay(Pins::RELAY_NUTRI_A, true);
+    setRelay(Pins::RELAY_NUTRI_B, true);
+    _state = State::DOSING_NUTRIENTS;
+    _stateStartedMs = millis();
+    _activeReport.nutrientAMl += deliveredMlForDuration(AppConfig::NUTRI_A_FLOW_ML_PER_SEC, durationMs);
+    _activeReport.nutrientBMl += deliveredMlForDuration(AppConfig::NUTRI_B_FLOW_ML_PER_SEC, durationMs);
+
+    Serial.println(label);
+}
+
 void DosingController::startRelayState(State nextState, uint8_t pin, float addedMl, const char *label) {
     setRelay(pin, true);
     _state = nextState;
@@ -316,8 +383,7 @@ void DosingController::stopAllRelays() {
 }
 
 void DosingController::setRelay(uint8_t pin, bool active) {
-    const bool activeLow = AppConfig::RELAY_ACTIVE_LOW;
-    digitalWrite(pin, active ? (activeLow ? LOW : HIGH) : (activeLow ? HIGH : LOW));
+    digitalWrite(pin, active ? kRelayOnLevel : kRelayOffLevel);
 }
 
 String DosingController::formatDate(const struct tm &localTime) const {

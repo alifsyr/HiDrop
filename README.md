@@ -1,449 +1,140 @@
-# Hydroponic Monitoring System (ESP32)
+# Hydroponic Monitoring and Auto-Dosing System
 
-Project ini adalah sistem monitoring hidroponik berbasis ESP32 yang membaca tiga parameter utama air:
+ESP32-based hydroponic controller for monitoring water quality and running basic automatic dosing.
 
-- `TDS` untuk konsentrasi nutrisi
-- `pH` untuk tingkat keasaman
-- `Temperature` untuk suhu air
+## Bahasa Indonesia
 
-Data sensor ditampilkan di LCD I2C 20x4, dikirim ke Serial Monitor, dan dilengkapi jam realtime WIB yang disinkronkan lewat Wi-Fi/NTP.
+### Ringkasan
 
-README ini menjelaskan arsitektur proyek, hardware yang dibutuhkan, wiring, alur kerja program, konfigurasi, dan cara menjalankan proyek dari awal sampai monitoring.
+Project ini adalah sistem hidroponik berbasis ESP32 yang memantau `TDS`, `pH`, dan `suhu air`, lalu menampilkan data ke LCD 20x4 dan Serial Monitor. Sistem juga mendukung jam realtime `WIB` dari Wi-Fi/NTP, target `pH` dan `PPM` yang bisa diubah saat runtime, serta auto dosing dasar untuk nutrisi dan koreksi pH.
 
-## 1. Cakupan Sistem Saat Ini
+### Fitur Utama
 
-Saat ini repo ini berfokus pada:
+- Monitoring `TDS`, `pH`, dan `temperature`.
+- LCD 20x4 dengan layout split:
+  sensor di kiri, nama farm + tanggal/jam di kanan.
+- Running text untuk area kanan jika teks tidak muat.
+- Web dashboard bawaan dari ESP32 untuk monitoring lewat browser.
+- Endpoint JSON `/api/status` untuk integrasi monitoring lain.
+- Sinkronisasi waktu `WIB` melalui Wi-Fi dan NTP.
+- Status boot di LCD saat Wi-Fi belum tersambung.
+- Target `pH` dan `PPM` bisa diubah lewat Serial Monitor dan disimpan ke EEPROM.
+- Notifikasi perubahan target langsung tampil di LCD.
+- Auto dosing:
+  - `PPM` rendah -> pompa `Nutrisi A` dan `Nutrisi B` nyala bersamaan.
+  - `pH` tinggi -> pompa `pH Down`.
+  - `pH` rendah -> pompa `pH Up`.
+- Logging event dosing ke Google Sheets sudah disiapkan, tetapi default-nya masih nonaktif sampai URL Apps Script diisi.
 
-- pembacaan sensor TDS
-- pembacaan sensor pH
-- pembacaan suhu air dengan DS18B20
-- tampilan LCD monitoring
-- sinkronisasi tanggal dan jam realtime WIB
-- pemilihan mode tampilan melalui Serial Monitor
-- status boot LCD saat Wi-Fi belum terhubung
+### Target Default
 
-Yang belum ada di repo ini:
+- `pH`: `5.8 - 6.2`
+- `PPM`: `600 - 800`
 
-- kontrol pompa
-- kontrol relay
-- dosing otomatis nutrisi
-- closed-loop control berbasis nilai sensor
-- unit test aktif di folder `test/`
+### Hardware dan Pin
 
-Catatan penting:
+| Fungsi          | GPIO   |
+| --------------- | ------ |
+| TDS Sensor      | `35` |
+| pH Sensor       | `34` |
+| DS18B20         | `4`  |
+| I2C SDA         | `21` |
+| I2C SCL         | `22` |
+| Relay Nutrisi A | `25` |
+| Relay Nutrisi B | `26` |
+| Relay pH Down   | `27` |
+| Relay pH Up     | `33` |
 
-- Mode seperti `PH DOWN CAL`, `PH UP CAL`, `NUTRI A`, dan `NUTRI B` saat ini adalah mode tampilan pada LCD.
-- Mode tersebut belum mengubah logika dosing atau aktuator.
-- Kalibrasi yang benar-benar diteruskan ke library saat ini adalah kalibrasi TDS melalui command serial.
+### Alur Auto Dosing
 
-## 2. Fitur Utama
+- Sistem membaca sensor secara periodik.
+- Jika `PPM < target minimum`, relay `Nutrisi A` dan `Nutrisi B` aktif bersamaan dengan rasio waktu yang sama.
+- Jika `pH > target maksimum`, relay `pH Down` aktif.
+- Jika `pH < target minimum`, relay `pH Up` aktif.
+- Setelah dosing, sistem menunggu waktu mixing lalu membaca ulang sensor.
+- Jika `PPM > target maksimum`, sistem tidak mengencerkan otomatis.
+  Pengenceran air masih manual.
 
-- Monitoring `TDS`, `pH`, dan suhu air.
-- LCD 20x4 dengan layout dua area:
-  - sisi kiri untuk data sensor
-  - sisi kanan untuk nama farm, tanggal, dan jam
-- Running text pada sisi kanan jika teks lebih panjang dari lebar area LCD.
-- Pembatas visual antara area sensor dan area informasi.
-- Status boot:
-  - `Initializing...` saat Wi-Fi belum terhubung
-  - `Initializing Finish` setelah Wi-Fi berhasil terhubung
-- Sinkronisasi waktu realtime WIB lewat Wi-Fi dan NTP.
-- Auto reconnect Wi-Fi bila koneksi terputus.
-- Logging data sensor ke Serial Monitor.
-- Pengurangan noise pembacaan TDS dengan exponential smoothing.
-- Penjadwalan pembacaan sensor untuk mengurangi interferensi TDS dan pH.
+### Status LCD
 
-## 3. Hardware yang Dibutuhkan
+- `NORMAL` -> tidak ada dosing aktif.
+- `NUTRI A+B` -> dosing nutrisi sedang berjalan atau menunggu recheck nutrisi.
+- `PH ↓ DOSE` -> dosing pH down sedang berjalan atau menunggu recheck.
+- `PH ↑ DOSE` -> dosing pH up sedang berjalan atau menunggu recheck.
 
-Komponen minimum yang dibutuhkan:
+### Web Dashboard
 
-| Komponen | Fungsi |
-| --- | --- |
-| ESP32 Dev Board | Mikrokontroler utama |
-| Gravity TDS Sensor | Pembacaan TDS nutrisi |
-| pH Sensor Module analog | Pembacaan pH |
-| DS18B20 waterproof | Pembacaan suhu air |
-| LCD 20x4 I2C | Tampilan lokal |
-| Akses Wi-Fi | Sinkronisasi tanggal dan jam WIB |
-| Catu daya stabil | Menyalakan ESP32 dan sensor |
+- Dashboard lokal tersedia di `http://IP_ESP32/`
+- API live:
+  - `http://IP_ESP32/api/status` (snapshot device/sensor/target/dosing terkini)
+  - `http://IP_ESP32/api/history` (riwayat sample chart `pH` dan `PPM`)
+  - `http://IP_ESP32/api/reports` (riwayat event dosing terbaru)
+- Menampilkan `pH`, `PPM`, suhu, status Wi-Fi, waktu lokal, mode sensor, mode dosing, target range, dan histori singkat dosing terakhir.
+- Dilengkapi line chart `pH` dan `PPM` untuk melihat tren secara visual.
+- Saat ESP32 berhasil connect Wi-Fi, alamat dashboard akan dicetak ke Serial Monitor.
 
-Catatan hardware:
+Contoh respons `/api/status`:
 
-- Semua ground sensor dan ESP32 harus tersambung bersama.
-- DS18B20 umumnya membutuhkan resistor pull-up 4.7k antara `DATA` dan `VCC`.
-- Pastikan output analog sensor TDS dan pH sesuai rentang ADC ESP32.
-- LCD diasumsikan memakai alamat I2C `0x27`.
-
-## 4. Pin Mapping
-
-Mapping pin di proyek ini didefinisikan di `include/config/pins.h`.
-
-| Fungsi | GPIO ESP32 |
-| --- | --- |
-| TDS Sensor | `35` |
-| pH Sensor | `34` |
-| DS18B20 | `4` |
-| I2C SDA | `21` |
-| I2C SCL | `22` |
-
-## 5. Stack Software
-
-Environment build menggunakan PlatformIO dengan board `esp32dev`.
-
-Framework dan dependency utama:
-
-- Arduino framework untuk ESP32
-- `GravityTDS`
-- `OneWire`
-- `DallasTemperature`
-- `LiquidCrystal_I2C`
-
-Konfigurasi PlatformIO ada di `platformio.ini`.
-
-## 6. Struktur Project
-
-Struktur folder utama:
-
-```text
-.
-├── include/
-│   ├── config/
-│   ├── control/
-│   ├── display/
-│   ├── models/
-│   ├── network/
-│   └── sensors/
-├── src/
-│   ├── control/
-│   ├── display/
-│   ├── network/
-│   └── sensors/
-├── lib/
-├── test/
-└── platformio.ini
+```json
+{
+  "device": {
+    "wifi_connected": true,
+    "ip_address": "192.168.1.50",
+    "time_valid": true,
+    "date": "2026-03-30",
+    "time": "15:12:08",
+    "uptime_seconds": 5432
+  },
+  "sensor": {
+    "temperature_c": 25.12,
+    "ppm": 712,
+    "ph_voltage": 1.324,
+    "ph": 6.01,
+    "mode": "MONITOR",
+    "calibration_mode": false
+  },
+  "targets": {
+    "ph_min": 5.8,
+    "ph_max": 6.2,
+    "ppm_min": 600,
+    "ppm_max": 800
+  },
+  "dosing": {
+    "busy": false,
+    "state": "Monitoring",
+    "display_mode": "NORMAL"
+  }
+}
 ```
 
-Penjelasan singkat:
+### Command Serial
 
-- `src/main.cpp`
-  - entry point aplikasi
-  - inisialisasi sensor, LCD, Wi-Fi, dan loop utama
-- `src/control/`
-  - koordinasi pembacaan sensor
-  - penjadwalan TDS dan pH
-- `src/sensors/`
-  - implementasi driver pembacaan sensor
-- `src/display/`
-  - pengaturan layout LCD
-  - boot screen
-  - running text
-- `src/network/`
-  - koneksi Wi-Fi
-  - sinkronisasi waktu NTP
-- `include/models/`
-  - model data sensor dan mode tampilan
+Pengaturan target:
 
-## 7. Alur Kerja Program
+- `SET PH <min> <max>`
+- `SET PPM <min> <max>`
+- `SHOW TARGETS`
+- `RESET TARGETS`
 
-### 7.1 Boot Sequence
+Kalibrasi TDS:
 
-Saat ESP32 menyala:
+- `ENTER`
+- `EXIT`
+- command lain diteruskan ke library `GravityTDS`
 
-1. Serial diinisialisasi pada `115200 baud`.
-2. EEPROM diinisialisasi.
-3. Bus I2C diinisialisasi.
-4. Sensor manager, LCD, dan Wi-Fi clock dijalankan.
-5. LCD menampilkan layar `Initializing...` sampai Wi-Fi terhubung.
-6. Setelah Wi-Fi terhubung, LCD menampilkan `Initializing Finish` selama beberapa detik.
-7. Sistem masuk ke layar monitoring utama.
+### Build dan Upload
 
-### 7.2 Loop Utama
+Sebelum build, buat file `.env` atau `.env.local` dari `.env.example`, lalu isi credential pribadi Anda.
 
-Di dalam `loop()`:
+Contoh:
 
-1. Membaca command dari serial.
-2. Memproses perubahan mode tampilan bila ada.
-3. Memproses command kalibrasi bila command bukan mode tampilan.
-4. Update sensor manager.
-5. Update status Wi-Fi dan NTP.
-6. Cetak log sensor ke serial secara periodik.
-7. Refresh LCD secara periodik.
-
-## 8. Cara Kerja Sensor
-
-### 8.1 Temperature Sensor (DS18B20)
-
-Implementasi ada di `src/sensors/temp_sensor.cpp`.
-
-Karakteristik:
-
-- menggunakan `DallasTemperature`
-- pembacaan non-blocking
-- resolusi sensor diset ke `10-bit`
-- ada fallback temperature default jika sensor tidak valid
-
-Alur kerjanya:
-
-- sensor meminta konversi suhu
-- program menunggu delay konversi sesuai config
-- suhu diambil dengan `getTempCByIndex(0)`
-- bila data tidak valid, sistem memakai fallback temperature
-
-### 8.2 TDS Sensor
-
-Implementasi ada di `src/sensors/tds_sensor.cpp`.
-
-Karakteristik:
-
-- menggunakan library `GravityTDS`
-- pembacaan dikompensasi berdasarkan suhu air
-- hasil dibersihkan dengan exponential smoothing
-
-Rumus smoothing:
-
-```text
-filtered = (alpha * raw) + ((1 - alpha) * previous)
+```env
+WIFI_SSID=your_wifi_ssid
+WIFI_PASSWORD=your_wifi_password
+GOOGLE_SHEETS_LOGGING_ENABLED=false
+GOOGLE_SHEETS_WEB_APP_URL=
+GOOGLE_SHEETS_SHARED_SECRET=
 ```
-
-Default `alpha` saat ini adalah `0.15`.
-
-### 8.3 pH Sensor
-
-Implementasi ada di `src/sensors/ph_sensor.cpp`.
-
-Karakteristik:
-
-- pembacaan analog dengan ADC 12-bit
-- mengambil beberapa sampel
-- data diurutkan
-- dua nilai terendah dan dua nilai tertinggi dibuang
-- sisanya dirata-ratakan
-
-Konversi tegangan ke pH:
-
-```text
-pH = (slope * voltage) + calibrationValue
-```
-
-Nilai default:
-
-- `slope = -5.70`
-- `calibrationValue = 21.34 - 0.7`
-
-Nilai pH di-clamp ke rentang `0.0 - 14.0`.
-
-## 9. Penjadwalan Sensor
-
-Penjadwalan sensor dikelola oleh `SensorManager`.
-
-Tujuannya adalah mengurangi potensi interferensi pembacaan antara TDS dan pH.
-
-Urutan logikanya:
-
-- suhu diperbarui secara terus-menerus
-- TDS diperbarui tiap `1000 ms`
-- setelah TDS dibaca, sistem menunggu quiet window `500 ms`
-- pH diperbarui tiap `1500 ms` saat quiet window sudah lewat
-
-Mode internal `SensorManager`:
-
-- `IDLE`
-- `TDS_READ`
-- `PH_QUIET`
-- `PH_READ`
-- `CALIBRATION`
-
-## 10. Tampilan LCD
-
-LCD menggunakan modul I2C 20x4.
-
-### 10.1 Layar Boot
-
-Sebelum Wi-Fi terhubung:
-
-```text
-Hydroponic System
-Initializing...
-WiFi Connecting
-Please Wait
-```
-
-Setelah Wi-Fi terhubung:
-
-```text
-Hydroponic System
-Initializing
-Finish
-WiFi Connected
-```
-
-### 10.2 Layout Monitoring
-
-Layout monitoring dibagi menjadi dua area:
-
-- sisi kiri untuk pembacaan sensor
-- sisi kanan untuk info farm dan waktu
-
-Contoh tampilan:
-
-```text
-Temp:27.3C |Hasna's
-TDS:518ppm |Sun 29 M
-pH:6.21    |13:05:04
-Mode:NORMAL
-```
-
-Catatan:
-
-- `|` adalah pembatas antara area kiri dan kanan
-- bagian kanan menggunakan running text bila teks terlalu panjang
-- baris mode menggunakan lebar penuh LCD
-
-### 10.3 Informasi yang Ditampilkan
-
-Sisi kiri:
-
-- `Temp`
-- `TDS`
-- `pH`
-- `Mode`
-
-Sisi kanan:
-
-- nama farm: `Hasna's Farm`
-- tanggal realtime WIB
-- jam realtime WIB
-
-## 11. Wi-Fi dan Sinkronisasi Waktu
-
-Fitur ini diimplementasikan di `src/network/wifi_clock.cpp`.
-
-Perilaku sistem:
-
-- ESP32 masuk ke mode station
-- mencoba connect ke Wi-Fi saat startup
-- auto reconnect tiap `10000 ms` bila koneksi hilang
-- setelah konek, waktu disinkronkan via NTP
-- timezone menggunakan `UTC+7` untuk WIB
-
-Server NTP default:
-
-- `pool.ntp.org`
-- `time.nist.gov`
-
-Catatan keamanan:
-
-- kredensial Wi-Fi saat ini disimpan langsung di source code
-- ubah `WIFI_SSID` dan `WIFI_PASSWORD` di `include/config/app_config.h` sebelum deploy ke environment lain
-
-## 12. Mode Tampilan
-
-Mode tampilan didefinisikan di `include/models/display_mode.h`.
-
-Daftar mode:
-
-- `NORMAL`
-- `PH_DOWN_CAL`
-- `PH_UP_CAL`
-- `NUTRI_A`
-- `NUTRI_B`
-
-Mode ini memengaruhi label yang tampil pada LCD, misalnya:
-
-- `Mode:NORMAL`
-- `Mode:PH ↓ CAL`
-- `Mode:PH ↑ CAL`
-- `Mode:NUTRI A`
-- `Mode:NUTRI B`
-
-## 13. Command Serial
-
-### 13.1 Mengubah Mode Tampilan
-
-Mode tampilan bisa diubah dari Serial Monitor.
-
-Command yang didukung:
-
-| Tujuan | Command yang diterima |
-| --- | --- |
-| Mode normal | `1`, `MODE1`, `NORMAL`, `MODE NORMAL` |
-| Mode pH down cal | `2`, `MODE2`, `PHDOWNCAL`, `PHBAWAHCAL` |
-| Mode pH up cal | `3`, `MODE3`, `PHUPCAL`, `PHATASCAL` |
-| Mode nutrisi A | `4`, `MODE4`, `NUTRIA` |
-| Mode nutrisi B | `5`, `MODE5`, `NUTRIB` |
-
-Catatan:
-
-- command tidak sensitif huruf besar/kecil
-- spasi, `_`, dan `-` diabaikan untuk parsing mode
-
-### 13.2 Kalibrasi TDS
-
-Command serial yang bukan mode tampilan akan diteruskan ke modul kalibrasi TDS.
-
-Yang ditangani langsung oleh aplikasi:
-
-- `ENTER` untuk masuk mode kalibrasi
-- `EXIT` untuk keluar mode kalibrasi
-
-Command lain diteruskan ke library `GravityTDS`.
-
-Catatan:
-
-- sintaks detail command kalibrasi TDS mengikuti library `GravityTDS`
-- EEPROM diinisialisasi pada startup agar kalibrasi dapat digunakan oleh library terkait
-
-## 14. Konfigurasi Penting
-
-Semua konfigurasi utama ada di `include/config/app_config.h`.
-
-Parameter yang paling sering diubah:
-
-| Parameter | Fungsi |
-| --- | --- |
-| `ADC_VREF` | Tegangan referensi ADC |
-| `ADC_RANGE` | Rentang ADC ESP32 |
-| `DEFAULT_WATER_TEMPERATURE_C` | Fallback suhu air |
-| `PH_SAMPLE_COUNT` | Jumlah sampel pH |
-| `TDS_SMOOTHING_ALPHA` | Intensitas smoothing TDS |
-| `PH_SLOPE` | Slope konversi pH |
-| `PH_CALIBRATION_VALUE` | Offset kalibrasi pH |
-| `TDS_UPDATE_INTERVAL_MS` | Interval baca TDS |
-| `PH_UPDATE_INTERVAL_MS` | Interval baca pH |
-| `PH_QUIET_AFTER_TDS_MS` | Delay pH setelah TDS |
-| `LCD_REFRESH_INTERVAL_MS` | Refresh LCD |
-| `LCD_SCROLL_INTERVAL_MS` | Kecepatan running text |
-| `LCD_INIT_FINISH_DURATION_MS` | Durasi layar finish |
-| `WIFI_RECONNECT_INTERVAL_MS` | Interval reconnect Wi-Fi |
-
-## 15. Cara Build dan Upload
-
-### 15.1 Menggunakan PlatformIO CLI
-
-Build:
-
-```bash
-pio run
-```
-
-Upload ke board:
-
-```bash
-pio run -t upload
-```
-
-Buka Serial Monitor:
-
-```bash
-pio device monitor -b 115200
-```
-
-Jika command `pio` belum ada di PATH, Anda bisa:
-
-- memakai PlatformIO extension di VS Code
-- atau memanggil binary PlatformIO dari environment lokal Anda
-
-### 15.2 Workflow yang Disarankan
 
 ```bash
 pio run
@@ -451,53 +142,110 @@ pio run -t upload
 pio device monitor -b 115200
 ```
 
-## 16. Output Serial
+---
 
-Saat tidak berada di mode kalibrasi, serial akan mencetak log seperti ini:
+## English
 
-```text
-Temp: 27.34 C | TDS: 518 ppm | pH: 6.21
+### Overview
+
+This project is an ESP32-based hydroponic system that monitors `TDS`, `pH`, and `water temperature`, then shows the data on a 20x4 LCD and the serial monitor. It also supports real-time `WIB` clock sync over Wi-Fi/NTP, runtime-configurable `pH` and `PPM` targets, and basic automatic dosing for nutrients and pH correction.
+
+### Key Features
+
+- `TDS`, `pH`, and temperature monitoring.
+- 20x4 LCD split layout:
+  sensor data on the left, farm name + date/time on the right.
+- Running text for right-side content when it exceeds the display width.
+- Built-in ESP32 web dashboard for browser-based monitoring.
+- JSON endpoint at `/api/status` for external monitoring integrations.
+- `WIB` time synchronization via Wi-Fi and NTP.
+- LCD boot status while Wi-Fi is connecting.
+- Runtime `pH` and `PPM` target updates through Serial Monitor, stored in EEPROM.
+- LCD notification whenever targets are changed.
+- Auto dosing:
+  - low `PPM` -> `Nutrient A` and `Nutrient B` pumps run together.
+  - high `pH` -> `pH Down` pump runs.
+  - low `pH` -> `pH Up` pump runs.
+- Google Sheets event logging is prepared, but disabled by default until the Apps Script URL is configured.
+
+### Default Targets
+
+- `pH`: `5.8 - 6.2`
+- `PPM`: `600 - 800`
+
+### Hardware and Pins
+
+| Function         | GPIO   |
+| ---------------- | ------ |
+| TDS Sensor       | `35` |
+| pH Sensor        | `34` |
+| DS18B20          | `4`  |
+| I2C SDA          | `21` |
+| I2C SCL          | `22` |
+| Nutrient A Relay | `25` |
+| Nutrient B Relay | `26` |
+| pH Down Relay    | `27` |
+| pH Up Relay      | `33` |
+
+### Auto-Dosing Flow
+
+- The system reads sensors periodically.
+- If `PPM < minimum target`, `Nutrient A` and `Nutrient B` relays run at the same time with the same dosing time ratio.
+- If `pH > maximum target`, the `pH Down` relay runs.
+- If `pH < minimum target`, the `pH Up` relay runs.
+- After dosing, the system waits for mixing and then rechecks the sensors.
+- If `PPM > maximum target`, dilution is not automatic yet.
+  Water dilution is still manual.
+
+### LCD Status
+
+- `NORMAL` -> no active dosing.
+- `NUTRI A+B` -> nutrient dosing is active or waiting for nutrient recheck.
+- `PH ↓ DOSE` -> pH down dosing is active or waiting for recheck.
+- `PH ↑ DOSE` -> pH up dosing is active or waiting for recheck.
+
+### Web Dashboard
+
+- Local dashboard is available at `http://ESP32_IP/`
+- Live API:
+  - `http://ESP32_IP/api/status` (latest device/sensor/target/dosing snapshot)
+  - `http://ESP32_IP/api/history` (chart history samples for `pH` and `PPM`)
+  - `http://ESP32_IP/api/reports` (latest dosing event reports)
+- Shows `pH`, `PPM`, temperature, Wi-Fi status, local time, sensor mode, dosing mode, target ranges, and a short recent dosing history.
+- Includes `pH` and `PPM` line charts for quick visual trend monitoring.
+- Once Wi-Fi is connected, the device prints the dashboard address to the serial monitor.
+
+### Serial Commands
+
+Target configuration:
+
+- `SET PH <min> <max>`
+- `SET PPM <min> <max>`
+- `SHOW TARGETS`
+- `RESET TARGETS`
+
+TDS calibration:
+
+- `ENTER`
+- `EXIT`
+- other commands are forwarded to the `GravityTDS` library
+
+### Build and Upload
+
+Before building, create a `.env` or `.env.local` file from `.env.example`, then fill in your private credentials.
+
+Example:
+
+```env
+WIFI_SSID=your_wifi_ssid
+WIFI_PASSWORD=your_wifi_password
+GOOGLE_SHEETS_LOGGING_ENABLED=false
+GOOGLE_SHEETS_WEB_APP_URL=
+GOOGLE_SHEETS_SHARED_SECRET=
 ```
 
-Serial juga akan mencetak perubahan mode tampilan bila command mode diterima.
-
-## 17. File yang Perlu Diperhatikan Saat Mengembangkan
-
-Kalau ingin mengubah bagian tertentu, biasanya file yang relevan adalah:
-
-| Kebutuhan | File utama |
-| --- | --- |
-| Ubah pin | `include/config/pins.h` |
-| Ubah konstanta sistem | `include/config/app_config.h` |
-| Ubah alur sensor | `src/control/sensor_manager.cpp` |
-| Ubah layout LCD | `src/display/lcd_display.cpp` |
-| Ubah koneksi Wi-Fi/NTP | `src/network/wifi_clock.cpp` |
-| Ubah parsing mode tampilan | `src/main.cpp` |
-
-## 18. Batasan dan Catatan Pengembangan
-
-Batasan saat ini:
-
-- mode display belum terhubung ke aktuator nyata
-- kredensial Wi-Fi masih hardcoded
-- belum ada test otomatis
-- belum ada pemisahan config khusus environment development dan production
-
-Saran pengembangan berikutnya:
-
-- pindahkan kredensial Wi-Fi ke file config lokal yang tidak di-commit
-- tambahkan kalibrasi pH yang lebih formal
-- tambahkan kontrol relay/pompa
-- tambahkan logging ke SD card atau cloud
-- tambahkan test untuk parsing mode dan formatting display
-
-## 19. Ringkasan Singkat
-
-Repo ini adalah fondasi sistem monitoring hidroponik berbasis ESP32 yang:
-
-- membaca TDS, pH, dan suhu
-- menampilkan data ke LCD 20x4
-- menjaga tampilan lokal tetap informatif
-- sinkron ke WIB lewat Wi-Fi
-- siap dikembangkan ke sistem kontrol hidroponik yang lebih lengkap
-
+```bash
+pio run
+pio run -t upload
+pio device monitor -b 115200
+```

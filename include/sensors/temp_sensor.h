@@ -6,7 +6,7 @@
 
 class TempSensor {
 public:
-    TempSensor(uint8_t pin, float fallbackTemperatureC = 25.0f);
+    explicit TempSensor(uint8_t pin, float fallbackTemperatureC = 25.0f);
 
     void begin();
     void update();

@@ -54,22 +54,34 @@ String LcdDisplay::buildDateString(const struct tm &localTime) const {
 
 String LcdDisplay::buildModeLabel(DisplayMode mode) const {
     switch (mode) {
-        case DisplayMode::PH_DOWN_CAL: {
+        case DisplayMode::PH_DOWN_DOSE: {
             String label = "PH ";
             label += char(kArrowDownCharSlot);
-            label += " CAL";
+            label += " DOSE";
             return label;
         }
-        case DisplayMode::PH_UP_CAL: {
+        case DisplayMode::PH_DOWN_WAIT: {
+            String label = "PH ";
+            label += char(kArrowDownCharSlot);
+            label += " WAIT";
+            return label;
+        }
+        case DisplayMode::PH_UP_DOSE: {
             String label = "PH ";
             label += char(kArrowUpCharSlot);
-            label += " CAL";
+            label += " DOSE";
             return label;
         }
-        case DisplayMode::NUTRI_A:
-            return "NUTRI A";
-        case DisplayMode::NUTRI_B:
-            return "NUTRI B";
+        case DisplayMode::PH_UP_WAIT: {
+            String label = "PH ";
+            label += char(kArrowUpCharSlot);
+            label += " WAIT";
+            return label;
+        }
+        case DisplayMode::NUTRI_AB:
+            return "NUTRI A+B";
+        case DisplayMode::NUTRI_AB_WAIT:
+            return "NUTRI A+B WAIT";
         case DisplayMode::NORMAL:
         default:
             return "NORMAL";
@@ -90,8 +102,8 @@ String LcdDisplay::buildRightWindow(const String &text, uint8_t width, size_t of
     window.reserve(width);
 
     for (uint8_t i = 0; i < width; i++) {
-        const size_t index = (offset + i) % loopText.length();
-        window += loopText.charAt(index);
+        const size_t charIndex = (offset + i) % loopText.length();
+        window += loopText.charAt(charIndex);
     }
 
     return window;

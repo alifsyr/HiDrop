@@ -8,16 +8,15 @@
 #include "control/sensor_manager.h"
 #include "control/target_range_manager.h"
 #include "display/lcd_display.h"
-#include "models/display_mode.h"
 #include "models/dosing_report.h"
 #include "network/google_sheets_logger.h"
+#include "network/web_dashboard_server.h"
 #include "network/wifi_clock.h"
 #include "sensors/ph_sensor.h"
 #include "sensors/tds_sensor.h"
 #include "sensors/temp_sensor.h"
 
 namespace {
-DisplayMode currentDisplayMode = DisplayMode::NORMAL;
 bool wasWifiConnected = false;
 unsigned long initFinishStartMs = 0;
 unsigned long targetMessageUntilMs = 0;
@@ -25,64 +24,6 @@ String targetMessageLine1;
 String targetMessageLine2;
 String targetMessageLine3;
 String targetMessageLine4;
-
-String compactCommand(const String &command) {
-    String compact = command;
-    compact.trim();
-    compact.toUpperCase();
-    compact.replace(" ", "");
-    compact.replace("-", "");
-    compact.replace("_", "");
-    return compact;
-}
-
-const char *displayModeName(DisplayMode mode) {
-    switch (mode) {
-        case DisplayMode::PH_DOWN_CAL:
-            return "PH_DOWN_CAL";
-        case DisplayMode::PH_UP_CAL:
-            return "PH_UP_CAL";
-        case DisplayMode::NUTRI_A:
-            return "NUTRI_A";
-        case DisplayMode::NUTRI_B:
-            return "NUTRI_B";
-        case DisplayMode::NORMAL:
-        default:
-            return "NORMAL";
-    }
-}
-
-bool trySetDisplayMode(const String &command) {
-    const String compact = compactCommand(command);
-
-    if (compact == "1" || compact == "MODE1" || compact == "NORMAL" || compact == "MODENORMAL") {
-        currentDisplayMode = DisplayMode::NORMAL;
-    } else if (
-        compact == "2" || compact == "MODE2" || compact == "PHDOWNCAL" || compact == "MODEPHDOWNCAL" ||
-        compact == "PHBAWAHCAL" || compact == "MODEPHBAWAHCAL"
-    ) {
-        currentDisplayMode = DisplayMode::PH_DOWN_CAL;
-    } else if (
-        compact == "3" || compact == "MODE3" || compact == "PHUPCAL" || compact == "MODEPHUPCAL" ||
-        compact == "PHATASCAL" || compact == "MODEPHATASCAL"
-    ) {
-        currentDisplayMode = DisplayMode::PH_UP_CAL;
-    } else if (
-        compact == "4" || compact == "MODE4" || compact == "NUTRIA" || compact == "MODENUTRIA"
-    ) {
-        currentDisplayMode = DisplayMode::NUTRI_A;
-    } else if (
-        compact == "5" || compact == "MODE5" || compact == "NUTRIB" || compact == "MODENUTRIB"
-    ) {
-        currentDisplayMode = DisplayMode::NUTRI_B;
-    } else {
-        return false;
-    }
-
-    Serial.print("Display mode: ");
-    Serial.println(displayModeName(currentDisplayMode));
-    return true;
-}
 }
 
 TdsSensor tdsSensor(
@@ -112,6 +53,7 @@ LcdDisplay lcdDisplay(
 WifiClock wifiClock(AppConfig::WIFI_SSID, AppConfig::WIFI_PASSWORD);
 DosingController dosingController;
 GoogleSheetsLogger sheetsLogger;
+WebDashboardServer webDashboardServer;
 TargetRangeManager targetRangeManager;
 
 void setup() {
@@ -128,17 +70,47 @@ void setup() {
     wifiClock.begin();
     dosingController.begin();
     sheetsLogger.begin();
+    webDashboardServer.setCommandCallback([](const String &cmd) {
+        return targetRangeManager.handleCommand(cmd);
+    });
+    webDashboardServer.begin();
 
     Serial.println();
 }
 
 void loop() {
-    if (Serial.available()) {
-        String command = Serial.readStringUntil('\n');
-        command.trim();
+    static char serialCommandBuffer[96];
+    static size_t serialCommandLength = 0;
 
-        if (command.length() > 0 && !targetRangeManager.handleCommand(command) && !trySetDisplayMode(command)) {
-            sensorManager.handleCalibrationCommand(command);
+    while (Serial.available() > 0) {
+        const char incoming = static_cast<char>(Serial.read());
+
+        if (incoming == '\r') {
+            continue;
+        }
+
+        if (incoming == '\n') {
+            if (serialCommandLength == 0) {
+                continue;
+            }
+
+            serialCommandBuffer[serialCommandLength] = '\0';
+            String command(serialCommandBuffer);
+            command.trim();
+
+            if (command.length() > 0 && !targetRangeManager.handleCommand(command)) {
+                sensorManager.handleCalibrationCommand(command);
+            }
+
+            serialCommandLength = 0;
+            continue;
+        }
+
+        if (serialCommandLength < (sizeof(serialCommandBuffer) - 1)) {
+            serialCommandBuffer[serialCommandLength++] = incoming;
+        } else {
+            serialCommandLength = 0;
+            Serial.println("Serial command too long. Max 95 chars.");
         }
     }
 
@@ -180,10 +152,24 @@ void loop() {
 
     DosingReport completedReport;
     if (dosingController.consumeCompletedReport(completedReport)) {
+        webDashboardServer.addCompletedReport(completedReport);
         sheetsLogger.queueReport(completedReport);
     }
 
     sheetsLogger.update(wifiConnected);
+    webDashboardServer.update(
+        currentData,
+        targetRangeManager.getRanges(),
+        sensorManager.getMode(),
+        sensorManager.isCalibrationMode(),
+        dosingController.getDisplayMode(),
+        dosingController.isBusy(),
+        dosingController.getStateLabel(),
+        wifiConnected,
+        timeValid ? &localTimeInfo : nullptr,
+        timeValid
+    );
+    webDashboardServer.handleClient();
 
     if (!sensorManager.isCalibrationMode() && (now - lastPrintMs >= AppConfig::SENSOR_PRINT_INTERVAL_MS)) {
         lastPrintMs = now;
@@ -221,7 +207,7 @@ void loop() {
 
         lcdDisplay.show(
             currentData,
-            currentDisplayMode,
+            dosingController.getDisplayMode(),
             wifiConnected,
             timeValid ? &localTimeInfo : nullptr,
             timeValid
