@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hydroponic Monitor (Cloud)</title>
+  <style>
+    :root {
+      --bg: #edf7f4;
+      --bg-strong: radial-gradient(circle at top left, #ffffff 0%, #edf7f4 38%, #d8ece5 100%);
+      --panel: rgba(255, 255, 255, 0.86);
+      --panel-border: rgba(21, 90, 72, 0.14);
+      --text: #13342b;
+      --muted: #5f786d;
+      --accent: #0d8d77;
+      --accent-soft: rgba(13, 141, 119, 0.12);
+      --ok: #15803d;
+      --warn: #b7791f;
+      --danger: #b42318;
+      --shadow: 0 24px 60px rgba(28, 65, 55, 0.12);
+      --radius: 24px;
+      --mono: "SFMono-Regular", "Consolas", "Liberation Mono", monospace;
+      --sans: "Trebuchet MS", "Avenir Next", "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: var(--sans);
+      color: var(--text);
+      background: var(--bg-strong);
+    }
+
+    .shell {
+      width: min(1120px, calc(100vw - 24px));
+      margin: 0 auto;
+      padding: 28px 0 40px;
+    }
+
+    .hero {
+      display: grid;
+      gap: 18px;
+      padding: 28px;
+      border-radius: 32px;
+      background:
+        linear-gradient(140deg, rgba(255,255,255,0.95), rgba(220,242,235,0.9)),
+        linear-gradient(135deg, rgba(13,141,119,0.2), transparent 55%);
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(19, 52, 43, 0.08);
+    }
+
+    .hero-head {
+      display: flex;
+      align-items: start;
+      justify-content: space-between;
+      gap: 18px;
+      flex-wrap: wrap;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.8);
+      color: var(--muted);
+      font-size: 0.9rem;
+      letter-spacing: 0.03em;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--warn);
+      box-shadow: 0 0 0 8px rgba(183, 121, 31, 0.1);
+      transition: background 160ms ease, box-shadow 160ms ease;
+    }
+
+    .dot.ok {
+      background: var(--ok);
+      box-shadow: 0 0 0 8px rgba(21, 128, 61, 0.12);
+    }
+
+    h1 {
+      margin: 10px 0 6px;
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      line-height: 0.95;
+      letter-spacing: -0.04em;
+    }
+
+    .subhead {
+      margin: 0;
+      max-width: 60ch;
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1.6;
+    }
+
+    .hero-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px;
+    }
+
+    .stat {
+      padding: 18px;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.74);
+      border: 1px solid rgba(19, 52, 43, 0.07);
+      backdrop-filter: blur(8px);
+    }
+
+    .label {
+      margin: 0 0 10px;
+      color: var(--muted);
+      font-size: 0.84rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .value {
+      margin: 0;
+      font-size: clamp(1.65rem, 4vw, 2.5rem);
+      line-height: 1;
+      font-weight: 700;
+    }
+
+    .value small {
+      font-size: 0.55em;
+      color: var(--muted);
+      font-weight: 600;
+      margin-left: 4px;
+    }
+
+    .meta {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .panel {
+      padding: 24px;
+      border-radius: var(--radius);
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(8px);
+    }
+
+    .panel h2 {
+      margin: 0 0 16px;
+      font-size: 1.15rem;
+      letter-spacing: -0.03em;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.95rem;
+    }
+
+    th, td {
+      text-align: left;
+      padding: 12px 10px;
+      border-bottom: 1px solid rgba(19, 52, 43, 0.08);
+    }
+
+    th {
+      color: var(--muted);
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .mono {
+      font-family: var(--mono);
+      font-size: 0.92rem;
+    }
+
+    .empty {
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    .chart-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+      margin-top: 18px;
+    }
+
+    .chart-card {
+      display: grid;
+      gap: 14px;
+    }
+
+    .chart-frame {
+      min-height: 260px;
+      padding: 16px;
+      border-radius: 20px;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(237, 247, 244, 0.82));
+      border: 1px solid rgba(19, 52, 43, 0.08);
+    }
+
+    .chart-svg {
+      width: 100%;
+      height: 240px;
+      display: block;
+    }
+
+    .chart-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .chart-stat {
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    /* Slider Styles */
+    .slider-group {
+      margin-bottom: 20px;
+    }
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .slider-label {
+      font-weight: 600;
+      color: var(--text);
+    }
+    .slider-value {
+      font-family: var(--mono);
+      color: var(--accent);
+      font-weight: 700;
+    }
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 100%;
+      background: transparent;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      height: 24px;
+      width: 24px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      margin-top: -8px;
+      box-shadow: 0 2px 6px rgba(13, 141, 119, 0.4);
+    }
+    input[type=range]::-webkit-slider-runnable-track {
+      width: 100%;
+      height: 8px;
+      cursor: pointer;
+      background: rgba(13, 141, 119, 0.2);
+      border-radius: 4px;
+    }
+    .btn {
+      display: inline-block;
+      padding: 12px 24px;
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      width: 100%;
+    }
+    .btn:hover {
+      background: #0a6c5b;
+    }
+    .btn:disabled {
+      background: var(--muted);
+      cursor: not-allowed;
+    }
+
+    @media (max-width: 860px) {
+      .chart-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .shell {
+        width: min(100vw - 18px, 1120px);
+        padding-top: 18px;
+      }
+
+      .hero,
+      .panel {
+        padding: 20px;
+      }
+    }
+  </style>
+  
+  <!-- Firebase JS SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getDatabase, ref, onValue, set, get, child } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBndjmNk-7gose5h_pM1bYX1rMI6Z-CgHE",
+      authDomain: "hidrop0n1c.firebaseapp.com",
+      databaseURL: "https://hidrop0n1c-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "hidrop0n1c",
+      storageBucket: "hidrop0n1c.firebasestorage.app",
+      messagingSenderId: "850371070464",
+      appId: "1:850371070464:web:656085af5584e3d92ea6e5",
+      measurementId: "G-PV1TNPV642"
+    };
+
+    let app, db;
+    try {
+        app = initializeApp(firebaseConfig);
+        db = getDatabase(app);
+    } catch(e) {
+        console.error("Firebase not configured", e);
+    }
+
+    let latestStatus = null;
+    let latestHistory = null;
+    let isEditingTargets = false;
+
+    function formatNumber(value, digits) {
+      if (typeof value !== "number" || Number.isNaN(value)) return "-";
+      return value.toFixed(digits);
+    }
+
+    function formatDurationLabel(totalMs) {
+      const totalSeconds = Math.max(0, Math.round((Number(totalMs) || 0) / 1000));
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+      if (hours > 0) return `${hours}h ${minutes}m`;
+      if (minutes > 0) return `${minutes}m ${seconds}s`;
+      return `${seconds}s`;
+    }
+
+    function createChartEmptyState(svgId, message) {
+      const svg = document.getElementById(svgId);
+      svg.innerHTML = `
+        <rect x="0" y="0" width="640" height="240" rx="18" fill="rgba(13, 141, 119, 0.04)"></rect>
+        <text x="320" y="120" text-anchor="middle" fill="#5f786d" font-size="16" font-family="Trebuchet MS, sans-serif">
+          ${message}
+        </text>
+      `;
+    }
+
+    function buildChartPath(points) {
+      if (!Array.isArray(points) || points.length === 0) return "";
+      return points.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x.toFixed(2)} ${point.y.toFixed(2)}`).join(" ");
+    }
+
+    function renderLineChart(options) {
+      const { svgId, rangeId, latestId, values, digits, unit, color, targetMin, targetMax, hardMin, hardMax, sampleIntervalMs, lastLabel } = options;
+
+      const svg = document.getElementById(svgId);
+      const rangeLabel = document.getElementById(rangeId);
+      const latestLabel = document.getElementById(latestId);
+      if (!Array.isArray(values) || values.length < 2) {
+        createChartEmptyState(svgId, "Need more samples to draw chart");
+        rangeLabel.textContent = "Collecting history...";
+        latestLabel.textContent = "-";
+        return;
+      }
+
+      const numericValues = values
+        .map((value) => Number(value))
+        .filter((value) => Number.isFinite(value));
+
+      if (numericValues.length < 2) {
+        createChartEmptyState(svgId, "Invalid chart data");
+        rangeLabel.textContent = "Collecting history...";
+        latestLabel.textContent = "-";
+        return;
+      }
+
+      const margin = { top: 16, right: 18, bottom: 34, left: 48 };
+      const width = 640;
+      const height = 240;
+      const chartWidth = width - margin.left - margin.right;
+      const chartHeight = height - margin.top - margin.bottom;
+
+      let minValue = Math.min(...numericValues, Number(targetMin));
+      let maxValue = Math.max(...numericValues, Number(targetMax));
+      if (!Number.isFinite(minValue)) minValue = hardMin;
+      if (!Number.isFinite(maxValue)) maxValue = hardMax;
+
+      const spread = Math.max(maxValue - minValue, digits === 2 ? 0.4 : 50);
+      minValue -= spread * 0.18;
+      maxValue += spread * 0.18;
+      minValue = Math.max(hardMin, minValue);
+      maxValue = Math.min(hardMax, maxValue);
+      if (maxValue <= minValue) {
+        maxValue = minValue + (digits === 2 ? 1 : 100);
+      }
+
+      const scaleX = (index) => margin.left + (index / (numericValues.length - 1)) * chartWidth;
+      const scaleY = (value) => margin.top + ((maxValue - value) / (maxValue - minValue)) * chartHeight;
+      const chartPoints = numericValues.map((value, index) => ({ x: scaleX(index), y: scaleY(value), value }));
+
+      const path = buildChartPath(chartPoints);
+      const areaPath = `${path} L ${chartPoints[chartPoints.length - 1].x.toFixed(2)} ${(margin.top + chartHeight).toFixed(2)} L ${chartPoints[0].x.toFixed(2)} ${(margin.top + chartHeight).toFixed(2)} Z`;
+
+      const bandTop = scaleY(targetMax);
+      const bandBottom = scaleY(targetMin);
+      const yTicks = 4;
+      const grid = Array.from({ length: yTicks + 1 }, (_, index) => {
+        const ratio = index / yTicks;
+        const y = margin.top + ratio * chartHeight;
+        const value = maxValue - ratio * (maxValue - minValue);
+        return `
+          <line x1="${margin.left}" y1="${y.toFixed(2)}" x2="${(margin.left + chartWidth).toFixed(2)}" y2="${y.toFixed(2)}" stroke="rgba(19,52,43,0.12)" stroke-dasharray="4 6"></line>
+          <text x="${margin.left - 10}" y="${(y + 4).toFixed(2)}" text-anchor="end" fill="#5f786d" font-size="11">${value.toFixed(digits)}</text>
+        `;
+      }).join("");
+
+      const windowMs = Math.max(0, (numericValues.length - 1) * Math.max(0, Number(sampleIntervalMs) || 0));
+      const firstLabel = windowMs > 0 ? `-${formatDurationLabel(windowMs)}` : "Start";
+      const lastValue = numericValues[numericValues.length - 1];
+
+      svg.innerHTML = `
+        <rect x="0" y="0" width="${width}" height="${height}" rx="18" fill="rgba(13, 141, 119, 0.02)"></rect>
+        ${grid}
+        <rect
+          x="${margin.left}"
+          y="${Math.min(bandTop, bandBottom).toFixed(2)}"
+          width="${chartWidth}"
+          height="${Math.abs(bandBottom - bandTop).toFixed(2)}"
+          fill="rgba(13, 141, 119, 0.10)">
+        </rect>
+        <path d="${areaPath}" fill="${color}" opacity="0.12"></path>
+        <path d="${path}" fill="none" stroke="${color}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></path>
+        ${chartPoints.map((point, index) => `
+          <circle
+            cx="${point.x.toFixed(2)}"
+            cy="${point.y.toFixed(2)}"
+            r="${index === chartPoints.length - 1 ? 5.5 : 3}"
+            fill="${index === chartPoints.length - 1 ? color : "#ffffff"}"
+            stroke="${color}"
+            stroke-width="2">
+          </circle>
+        `).join("")}
+        <text x="${margin.left}" y="${height - 10}" fill="#5f786d" font-size="11">${firstLabel}</text>
+        <text x="${(margin.left + chartWidth).toFixed(2)}" y="${height - 10}" text-anchor="end" fill="#5f786d" font-size="11">${lastLabel || "Now"}</text>
+      `;
+
+      rangeLabel.textContent = `Window ${formatDurationLabel(windowMs)} | Target ${formatNumber(targetMin, digits)} - ${formatNumber(targetMax, digits)} ${unit}`;
+      latestLabel.textContent = `${formatNumber(lastValue, digits)} ${unit}`;
+    }
+
+    function renderHistory() {
+      const sampleIntervalMs = Number(latestHistory?.sample_interval_ms || 15000);
+      const lastLabel = latestStatus?.device?.time_valid ? (latestStatus?.device?.time || "Now") : "Now";
+
+      renderLineChart({
+        svgId: "phChart",
+        rangeId: "phChartRange",
+        latestId: "phChartLatest",
+        values: Array.isArray(latestHistory?.ph_x100) ? latestHistory.ph_x100.map((value) => Number(value) / 100) : [],
+        digits: 2,
+        unit: "pH",
+        color: "#0d8d77",
+        targetMin: Number(latestStatus?.targets?.ph_min || 0),
+        targetMax: Number(latestStatus?.targets?.ph_max || 14),
+        hardMin: 0,
+        hardMax: 14,
+        sampleIntervalMs,
+        lastLabel
+      });
+      renderLineChart({
+        svgId: "ppmChart",
+        rangeId: "ppmChartRange",
+        latestId: "ppmChartLatest",
+        values: Array.isArray(latestHistory?.ppm) ? latestHistory.ppm.map((value) => Number(value)) : [],
+        digits: 0,
+        unit: "ppm",
+        color: "#2b6cb0",
+        targetMin: Number(latestStatus?.targets?.ppm_min || 0),
+        targetMax: Number(latestStatus?.targets?.ppm_max || 1500),
+        hardMin: 0,
+        hardMax: 5000,
+        sampleIntervalMs,
+        lastLabel
+      });
+    }
+
+    function applyStatus(data) {
+      if(!data) return;
+      latestStatus = data;
+      
+      // Calculate age of data to determine if online
+      const nowMs = Date.now();
+      const lastUpdateMs = data.timestamp || 0;
+      const isOnline = (nowMs - lastUpdateMs) < 60000; // considered offline if no update for 60s
+      
+      document.getElementById("heroStatus").textContent = isOnline
+        ? "Device online and serving live telemetry"
+        : "Device offline (showing last known state)";
+      document.getElementById("wifiDot").classList.toggle("ok", isOnline);
+      document.getElementById("refreshedAt").textContent = new Date(lastUpdateMs || nowMs).toLocaleTimeString();
+
+      document.getElementById("phValue").innerHTML = `${formatNumber(data?.sensor?.ph, 2)}<small>pH</small>`;
+      document.getElementById("ppmValue").innerHTML = `${formatNumber(data?.sensor?.ppm, 0)}<small>ppm</small>`;
+      document.getElementById("tempValue").innerHTML = `${formatNumber(data?.sensor?.temperature_c, 2)}<small>&deg;C</small>`;
+      document.getElementById("dosingState").textContent = data?.dosing?.state || "-";
+
+      document.getElementById("phMeta").textContent = `Target: ${formatNumber(data?.targets?.ph_min, 2)} - ${formatNumber(data?.targets?.ph_max, 2)}`;
+      document.getElementById("ppmMeta").textContent = `Target: ${formatNumber(data?.targets?.ppm_min, 0)} - ${formatNumber(data?.targets?.ppm_max, 0)}`;
+      document.getElementById("tempMeta").textContent = `Voltage pH probe: ${formatNumber(data?.sensor?.ph_voltage, 3)} V`;
+      document.getElementById("dosingMeta").textContent = `Mode: ${data?.dosing?.display_mode || "-"} | Busy: ${data?.dosing?.busy ? "YES" : "NO"}`;
+      
+      if (!isEditingTargets && data?.targets) {
+        document.getElementById('phMinSlider').value = data.targets.ph_min;
+        document.getElementById('phMinVal').textContent = formatNumber(data.targets.ph_min, 2);
+        document.getElementById('phMaxSlider').value = data.targets.ph_max;
+        document.getElementById('phMaxVal').textContent = formatNumber(data.targets.ph_max, 2);
+        document.getElementById('ppmMinSlider').value = data.targets.ppm_min;
+        document.getElementById('ppmMinVal').textContent = formatNumber(data.targets.ppm_min, 0);
+        document.getElementById('ppmMaxSlider').value = data.targets.ppm_max;
+        document.getElementById('ppmMaxVal').textContent = formatNumber(data.targets.ppm_max, 0);
+      }
+      
+      renderHistory();
+    }
+
+    function applyHistory(data) {
+      if(!data) return;
+      latestHistory = data;
+      renderHistory();
+    }
+
+    // Connect to Firebase and listen to changes
+    if(db) {
+      const statusRef = ref(db, 'hydroponic/status');
+      onValue(statusRef, (snapshot) => {
+        applyStatus(snapshot.val());
+      });
+
+      const historyRef = ref(db, 'hydroponic/history');
+      onValue(historyRef, (snapshot) => {
+        applyHistory(snapshot.val());
+      });
+    }
+
+    const targetSliders = ['phMinSlider', 'phMaxSlider', 'ppmMinSlider', 'ppmMaxSlider'];
+    targetSliders.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('mousedown', () => isEditingTargets = true);
+        el.addEventListener('touchstart', () => isEditingTargets = true, {passive: true});
+        el.addEventListener('change', () => isEditingTargets = false);
+      }
+    });
+
+    window.saveTargets = async function() {
+      if(!db) {
+        alert("Firebase is not configured!");
+        return;
+      }
+      
+      const btn = document.getElementById('saveTargetsBtn');
+      const statusText = document.getElementById('saveTargetsStatus');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+      
+      const targets = {
+        ph_min: Number(document.getElementById('phMinSlider').value),
+        ph_max: Number(document.getElementById('phMaxSlider').value),
+        ppm_min: Number(document.getElementById('ppmMinSlider').value),
+        ppm_max: Number(document.getElementById('ppmMaxSlider').value),
+        timestamp: Date.now(),
+        pending_update: true
+      };
+
+      try {
+        await set(ref(db, 'hydroponic/commands/targets'), targets);
+        statusText.textContent = 'Saved to Cloud successfully!';
+        statusText.style.color = 'var(--ok)';
+        statusText.style.display = 'block';
+        setTimeout(() => statusText.style.display = 'none', 3000);
+      } catch (err) {
+        statusText.textContent = err.message;
+        statusText.style.color = 'var(--danger)';
+        statusText.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save Targets';
+        isEditingTargets = false;
+      }
+    };
+    
+    // Check connection state
+    setInterval(() => {
+        if(latestStatus) applyStatus(latestStatus);
+    }, 5000);
+
+  </script>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div class="hero-head">
+        <div>
+          <div class="eyebrow">
+            <span id="wifiDot" class="dot"></span>
+            <span id="heroStatus">Connecting to Cloud...</span>
+          </div>
+          <h1>Hydroponic Monitor</h1>
+          <p class="subhead">
+            Global monitoring dashboard via Firebase Realtime Database.
+          </p>
+        </div>
+        <div style="display: flex; gap: 14px; align-items: start;">
+          <div class="stat">
+            <p class="label">Last Update</p>
+            <p id="refreshedAt" class="value" style="font-size:1.4rem">Waiting...</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="hero-stats">
+        <article class="stat">
+          <p class="label">pH Air</p>
+          <p id="phValue" class="value">-</p>
+          <div class="meta" id="phMeta">Target: -</div>
+        </article>
+        <article class="stat">
+          <p class="label">PPM</p>
+          <p id="ppmValue" class="value">-</p>
+          <div class="meta" id="ppmMeta">Target: -</div>
+        </article>
+        <article class="stat">
+          <p class="label">Temperature</p>
+          <p id="tempValue" class="value">-</p>
+          <div class="meta" id="tempMeta">Water temperature</div>
+        </article>
+        <article class="stat">
+          <p class="label">Auto Dosing</p>
+          <p id="dosingState" class="value" style="font-size:1.25rem; line-height:1.2">-</p>
+          <div class="meta" id="dosingMeta">Mode: -</div>
+        </article>
+      </div>
+    </section>
+
+    <section class="chart-grid">
+      <article class="panel chart-card">
+        <div class="section-head">
+          <h2>pH Trend</h2>
+          <span class="meta">Recent sensor history</span>
+        </div>
+        <div class="chart-frame">
+          <svg id="phChart" class="chart-svg" viewBox="0 0 640 240" role="img" aria-label="pH history chart"></svg>
+        </div>
+        <div class="chart-meta">
+          <span id="phChartRange">Waiting for data...</span>
+          <span id="phChartLatest" class="chart-stat">-</span>
+        </div>
+      </article>
+
+      <article class="panel chart-card">
+        <div class="section-head">
+          <h2>PPM Trend</h2>
+          <span class="meta">Recent sensor history</span>
+        </div>
+        <div class="chart-frame">
+          <svg id="ppmChart" class="chart-svg" viewBox="0 0 640 240" role="img" aria-label="PPM history chart"></svg>
+        </div>
+        <div class="chart-meta">
+          <span id="ppmChartRange">Waiting for data...</span>
+          <span id="ppmChartLatest" class="chart-stat">-</span>
+        </div>
+      </article>
+    </section>
+
+    <section class="panel" style="margin-top:18px">
+      <div class="section-head">
+        <h2>Target Settings</h2>
+        <span class="meta">Adjust dosing targets remotely</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px;">
+        <div>
+          <div class="slider-group">
+            <div class="slider-header">
+              <span class="slider-label">pH Minimum</span>
+              <span class="slider-value" id="phMinVal">-</span>
+            </div>
+            <input type="range" id="phMinSlider" min="0" max="14" step="0.1" value="5.8" oninput="document.getElementById('phMinVal').textContent = Number(this.value).toFixed(2)">
+          </div>
+          <div class="slider-group">
+            <div class="slider-header">
+              <span class="slider-label">pH Maximum</span>
+              <span class="slider-value" id="phMaxVal">-</span>
+            </div>
+            <input type="range" id="phMaxSlider" min="0" max="14" step="0.1" value="6.2" oninput="document.getElementById('phMaxVal').textContent = Number(this.value).toFixed(2)">
+          </div>
+        </div>
+        <div>
+          <div class="slider-group">
+            <div class="slider-header">
+              <span class="slider-label">PPM Minimum</span>
+              <span class="slider-value" id="ppmMinVal">-</span>
+            </div>
+            <input type="range" id="ppmMinSlider" min="0" max="2000" step="10" value="600" oninput="document.getElementById('ppmMinVal').textContent = this.value">
+          </div>
+          <div class="slider-group">
+            <div class="slider-header">
+              <span class="slider-label">PPM Maximum</span>
+              <span class="slider-value" id="ppmMaxVal">-</span>
+            </div>
+            <input type="range" id="ppmMaxSlider" min="0" max="2000" step="10" value="800" oninput="document.getElementById('ppmMaxVal').textContent = this.value">
+          </div>
+        </div>
+      </div>
+      <button id="saveTargetsBtn" class="btn" style="margin-top: 16px;" onclick="saveTargets()">Save Targets to Cloud</button>
+      <div id="saveTargetsStatus" style="margin-top: 8px; font-size: 0.9rem; text-align: center; color: var(--ok); display: none;">Saved successfully!</div>
+    </section>
+
+  </main>
+</body>
+</html>

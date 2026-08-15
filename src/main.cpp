@@ -11,7 +11,7 @@
 #include "models/dosing_report.h"
 #include "network/google_sheets_logger.h"
 #include "network/ota_updater.h"
-#include "network/web_dashboard_server.h"
+#include "network/firebase_client.h"
 #include "network/wifi_clock.h"
 #include "sensors/ph_sensor.h"
 #include "sensors/tds_sensor.h"
@@ -44,7 +44,7 @@ LcdDisplay lcdDisplay(AppConfig::LCD_I2C_ADDRESS, AppConfig::LCD_COLUMNS,
 WifiClock wifiClock(AppConfig::WIFI_SSID, AppConfig::WIFI_PASSWORD);
 DosingController dosingController;
 GoogleSheetsLogger sheetsLogger;
-WebDashboardServer webDashboardServer;
+FirebaseClient firebaseClient;
 TargetRangeManager targetRangeManager;
 OtaUpdater otaUpdater("alifsyr", "HiDrop");
 
@@ -62,11 +62,10 @@ void setup() {
   wifiClock.begin();
   dosingController.begin();
   sheetsLogger.begin();
-  webDashboardServer.setCommandCallback(
+  firebaseClient.setCommandCallback(
       [](const String &cmd) { return targetRangeManager.handleCommand(cmd); });
   otaUpdater.begin();
-  webDashboardServer.setOtaUpdater(&otaUpdater);
-  webDashboardServer.begin();
+  firebaseClient.begin();
 
   Serial.println();
 }
@@ -141,17 +140,17 @@ void loop() {
 
   DosingReport completedReport;
   if (dosingController.consumeCompletedReport(completedReport)) {
-    webDashboardServer.addCompletedReport(completedReport);
+    firebaseClient.addCompletedReport(completedReport);
     sheetsLogger.queueReport(completedReport);
   }
 
   sheetsLogger.update(wifiConnected);
-  webDashboardServer.update(
+  firebaseClient.update(
       currentData, targetRangeManager.getRanges(), sensorManager.getMode(),
       sensorManager.isCalibrationMode(), dosingController.getDisplayMode(),
       dosingController.isBusy(), dosingController.getStateLabel(),
       wifiConnected, timeValid ? &localTimeInfo : nullptr, timeValid);
-  webDashboardServer.handleClient();
+  firebaseClient.handleClient();
 
   if (!sensorManager.isCalibrationMode() &&
       (now - lastPrintMs >= AppConfig::SENSOR_PRINT_INTERVAL_MS)) {

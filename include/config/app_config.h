@@ -95,8 +95,20 @@ namespace AppConfig {
     constexpr long WIB_UTC_OFFSET_SECONDS = 7L * 60L * 60L;
     constexpr unsigned long WIFI_RECONNECT_INTERVAL_MS = 10000;
 
+    // Firebase Realtime Database
+    constexpr bool FIREBASE_ENABLED = true;
+    #ifndef APP_FIREBASE_HOST
+    #define APP_FIREBASE_HOST "hidrop0n1c-default-rtdb.asia-southeast1.firebasedatabase.app"
+    #endif
+    #ifndef APP_FIREBASE_AUTH
+    #define APP_FIREBASE_AUTH "FKrkYE9JAGyUJQ3a2ZzXAEh4mSzUjIk4WsxntOIX"
+    #endif
+    constexpr char FIREBASE_HOST[] = APP_FIREBASE_HOST;
+    constexpr char FIREBASE_AUTH[] = APP_FIREBASE_AUTH;
+    constexpr unsigned long FIREBASE_UPDATE_INTERVAL_MS = 5000;
+
     // Web dashboard
-    constexpr bool WEB_DASHBOARD_ENABLED = true;
+    constexpr bool WEB_DASHBOARD_ENABLED = false;
     constexpr uint16_t WEB_SERVER_PORT = 80;
     constexpr char WEB_DASHBOARD_TITLE[] = "Hydroponic Monitor";
     constexpr unsigned long WEB_DASHBOARD_REFRESH_INTERVAL_MS = 5000;
