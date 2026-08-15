@@ -337,10 +337,19 @@ const char *kDashboardPage = R"HTML(
             Dashboard live untuk pH, PPM, suhu air, status auto dosing, dan histori singkat aktivitas terakhir dari ESP32.
           </p>
         </div>
-        <div class="stat">
-          <p class="label">Last Refresh</p>
-          <p id="refreshedAt" class="value" style="font-size:1.4rem">Waiting...</p>
-          <div class="meta mono" id="ipAddress">IP: -</div>
+        <div style="display: flex; gap: 14px; align-items: start;">
+          <button id="otaBellBtn" onclick="openOtaModal()" style="position: relative; background: rgba(255,255,255,0.74); border: 1px solid rgba(19, 52, 43, 0.07); padding: 18px; border-radius: 20px; cursor: pointer; transition: background 0.2s; backdrop-filter: blur(8px);">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+            </svg>
+            <span id="otaBadge" style="display: none; position: absolute; top: 12px; right: 12px; width: 10px; height: 10px; background: #b42318; border-radius: 50%; box-shadow: 0 0 0 3px rgba(255,255,255,0.8);"></span>
+          </button>
+          <div class="stat">
+            <p class="label">Last Refresh</p>
+            <p id="refreshedAt" class="value" style="font-size:1.4rem">Waiting...</p>
+            <div class="meta mono" id="ipAddress">IP: -</div>
+          </div>
         </div>
       </div>
 
@@ -447,6 +456,28 @@ const char *kDashboardPage = R"HTML(
         <p class="empty">Belum ada event dosing yang selesai.</p>
       </div>
     </section>
+
+    <!-- OTA Modal -->
+    <div id="otaModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+      <div class="panel" style="max-width: 400px; width: 90%; position: relative;">
+        <button onclick="closeOtaModal()" style="position: absolute; right: 16px; top: 16px; background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--muted);">&times;</button>
+        <h2>Firmware Update</h2>
+        <p class="subhead" style="margin-bottom: 20px;">Check for the latest updates from GitHub.</p>
+        
+        <div style="margin-bottom: 12px;">
+          <span class="label">Current Version:</span>
+          <span class="value" style="font-size: 1.2rem;" id="otaCurrentVer">-</span>
+        </div>
+        <div style="margin-bottom: 24px;">
+          <span class="label">Latest Version:</span>
+          <span class="value" style="font-size: 1.2rem; color: var(--accent);" id="otaLatestVer">-</span>
+        </div>
+        
+        <button id="otaCheckBtn" class="btn" style="background: white; color: var(--accent); border: 1px solid var(--accent); margin-bottom: 12px;" onclick="checkOtaUpdate()">Check Update Now</button>
+        <button id="otaStartBtn" class="btn" style="display: none;" onclick="startOtaUpdate()">Install Update & Restart</button>
+        <div id="otaStatusText" style="margin-top: 12px; font-size: 0.9rem; text-align: center; color: var(--muted);"></div>
+      </div>
+    </div>
   </main>
 
   <script>
@@ -692,6 +723,7 @@ const char *kDashboardPage = R"HTML(
       document.getElementById("ppmMeta").textContent = `Target: ${formatNumber(data?.targets?.ppm_min, 0)} - ${formatNumber(data?.targets?.ppm_max, 0)}`;
       document.getElementById("tempMeta").textContent = `Voltage pH probe: ${formatNumber(data?.sensor?.ph_voltage, 3)} V`;
       document.getElementById("dosingMeta").textContent = `Mode: ${data?.dosing?.display_mode || "-"} | Busy: ${data?.dosing?.busy ? "YES" : "NO"}`;
+      document.getElementById("otaBadge").style.display = data?.device?.ota_available ? 'block' : 'none';
       
       if (!isEditingTargets && data?.targets) {
         document.getElementById('phMinSlider').value = data.targets.ph_min;
@@ -794,6 +826,82 @@ const char *kDashboardPage = R"HTML(
       }
     }
 
+    function openOtaModal() {
+      document.getElementById('otaModal').style.display = 'flex';
+      document.getElementById('otaCurrentVer').textContent = latestStatus?.device?.firmware_version || '-';
+      document.getElementById('otaLatestVer').textContent = latestStatus?.device?.ota_latest_version || '-';
+      document.getElementById('otaStatusText').textContent = '';
+      
+      const hasUpdate = latestStatus?.device?.ota_available;
+      document.getElementById('otaStartBtn').style.display = hasUpdate ? 'block' : 'none';
+    }
+
+    function closeOtaModal() {
+      document.getElementById('otaModal').style.display = 'none';
+    }
+
+    async function checkOtaUpdate() {
+      const btn = document.getElementById('otaCheckBtn');
+      const status = document.getElementById('otaStatusText');
+      btn.disabled = true;
+      btn.textContent = 'Checking...';
+      status.textContent = '';
+      
+      try {
+        const response = await fetch('/api/update/check', { method: 'POST' });
+        if (!response.ok) throw new Error('Check failed');
+        await refreshStatus(); 
+        
+        document.getElementById('otaCurrentVer').textContent = latestStatus?.device?.firmware_version || '-';
+        document.getElementById('otaLatestVer').textContent = latestStatus?.device?.ota_latest_version || '-';
+        
+        if (latestStatus?.device?.ota_available) {
+          status.textContent = 'Update found!';
+          status.style.color = 'var(--ok)';
+          document.getElementById('otaStartBtn').style.display = 'block';
+        } else {
+          status.textContent = 'Already up to date.';
+          status.style.color = 'var(--muted)';
+          document.getElementById('otaStartBtn').style.display = 'none';
+        }
+      } catch (err) {
+        status.textContent = err.message;
+        status.style.color = 'var(--danger)';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Check Update Now';
+      }
+    }
+
+    async function startOtaUpdate() {
+      const btn = document.getElementById('otaStartBtn');
+      const status = document.getElementById('otaStatusText');
+      btn.disabled = true;
+      document.getElementById('otaCheckBtn').disabled = true;
+      btn.textContent = 'Downloading...';
+      status.textContent = 'Please wait, device will restart automatically.';
+      status.style.color = 'var(--warn)';
+      
+      try {
+        fetch('/api/update/start', { method: 'POST' });
+        let countdown = 15;
+        const interval = setInterval(() => {
+          status.textContent = `Rebooting in ${countdown}s...`;
+          countdown--;
+          if (countdown < 0) {
+            clearInterval(interval);
+            window.location.reload();
+          }
+        }, 1000);
+      } catch (err) {
+        status.textContent = err.message;
+        status.style.color = 'var(--danger)';
+        btn.disabled = false;
+        document.getElementById('otaCheckBtn').disabled = false;
+        btn.textContent = 'Install Update & Restart';
+      }
+    }
+
     refreshStatus();
     refreshHistory();
     refreshReports();
@@ -813,7 +921,8 @@ WebDashboardServer::WebDashboardServer()
       _historySampleCount(0),
       _historySampleHead(0),
       _lastHistorySampleMs(0),
-      _wasWifiConnected(false) {}
+      _wasWifiConnected(false),
+      _otaUpdater(nullptr) {}
 
 void WebDashboardServer::begin() {
     if (!AppConfig::WEB_DASHBOARD_ENABLED) {
@@ -829,6 +938,10 @@ void WebDashboardServer::begin() {
 
 void WebDashboardServer::setCommandCallback(CommandCallback cb) {
     _commandCallback = cb;
+}
+
+void WebDashboardServer::setOtaUpdater(OtaUpdater* updater) {
+    _otaUpdater = updater;
 }
 
 void WebDashboardServer::update(
@@ -914,6 +1027,8 @@ void WebDashboardServer::registerRoutes() {
     _server.on("/api/history", HTTP_GET, [this]() { handleHistory(); });
     _server.on("/api/reports", HTTP_GET, [this]() { handleReports(); });
     _server.on("/api/settings/targets", HTTP_POST, [this]() { handleSetTargets(); });
+    _server.on("/api/update/check", HTTP_POST, [this]() { handleOtaCheck(); });
+    _server.on("/api/update/start", HTTP_POST, [this]() { handleOtaStart(); });
     _server.onNotFound([this]() {
         _server.send(404, "application/json", "{\"error\":\"not_found\"}");
     });
@@ -963,6 +1078,20 @@ void WebDashboardServer::handleSetTargets() {
     }
 }
 
+void WebDashboardServer::handleOtaCheck() {
+    if (_otaUpdater) {
+        _otaUpdater->update(true); // force check
+    }
+    _server.send(200, "application/json", "{\"success\":true}");
+}
+
+void WebDashboardServer::handleOtaStart() {
+    _server.send(200, "application/json", "{\"success\":true}");
+    if (_otaUpdater) {
+        _otaUpdater->startUpdate();
+    }
+}
+
 String WebDashboardServer::buildHtmlPage() const {
     String page(kDashboardPage);
     page.replace("__DASHBOARD_TITLE__", AppConfig::WEB_DASHBOARD_TITLE);
@@ -984,7 +1113,11 @@ String WebDashboardServer::buildStatusJson() const {
 
     json += "{";
     json += "\"device\":{";
-    json += "\"wifi_connected\":";
+    json += "\"firmware_version\":\"" + escapeJson(String(FIRMWARE_VERSION)) + "\"";
+    json += ",\"ota_available\":";
+    json += (_otaUpdater && _otaUpdater->isUpdateAvailable()) ? "true" : "false";
+    json += ",\"ota_latest_version\":\"" + escapeJson(_otaUpdater ? _otaUpdater->getLatestVersion() : String(FIRMWARE_VERSION)) + "\"";
+    json += ",\"wifi_connected\":";
     json += _snapshot.wifiConnected ? "true" : "false";
     json += ",\"ip_address\":\"" + escapeJson(String(_snapshot.ipAddress)) + "\"";
     json += ",\"time_valid\":";

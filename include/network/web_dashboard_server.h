@@ -8,6 +8,7 @@
 #include "models/dosing_report.h"
 #include "models/sensor_data.h"
 #include "models/target_ranges.h"
+#include "network/ota_updater.h"
 
 class WebDashboardServer {
 public:
@@ -31,6 +32,7 @@ public:
     void handleClient();
     void addCompletedReport(const DosingReport &report);
     void setCommandCallback(CommandCallback cb);
+    void setOtaUpdater(OtaUpdater* updater);
 
 private:
     static constexpr size_t kRecentReportsSize = 6;
@@ -69,6 +71,7 @@ private:
     unsigned long _lastHistorySampleMs;
     bool _wasWifiConnected;
     CommandCallback _commandCallback;
+    OtaUpdater* _otaUpdater;
 
     void registerRoutes();
     void handleRoot();
@@ -76,6 +79,8 @@ private:
     void handleHistory();
     void handleReports();
     void handleSetTargets();
+    void handleOtaCheck();
+    void handleOtaStart();
     String buildHtmlPage() const;
     String buildStatusJson() const;
     String buildRecentReportsJson() const;

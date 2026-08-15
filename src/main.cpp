@@ -10,6 +10,7 @@
 #include "display/lcd_display.h"
 #include "models/dosing_report.h"
 #include "network/google_sheets_logger.h"
+#include "network/ota_updater.h"
 #include "network/web_dashboard_server.h"
 #include "network/wifi_clock.h"
 #include "sensors/ph_sensor.h"
@@ -24,193 +25,163 @@ String targetMessageLine1;
 String targetMessageLine2;
 String targetMessageLine3;
 String targetMessageLine4;
-}
+} // namespace
 
-TdsSensor tdsSensor(
-    Pins::TDS_SENSOR,
-    AppConfig::ADC_VREF,
-    AppConfig::ADC_RANGE,
-    AppConfig::TDS_SMOOTHING_ALPHA
-);
+TdsSensor tdsSensor(Pins::TDS_SENSOR, AppConfig::ADC_VREF, AppConfig::ADC_RANGE,
+                    AppConfig::TDS_SMOOTHING_ALPHA);
 
-PhSensor phSensor(
-    Pins::PH_SENSOR,
-    AppConfig::ADC_VREF,
-    AppConfig::ADC_RANGE,
-    AppConfig::PH_SAMPLE_COUNT,
-    AppConfig::PH_SLOPE,
-    AppConfig::PH_CALIBRATION_VALUE
-);
+PhSensor phSensor(Pins::PH_SENSOR, AppConfig::ADC_VREF, AppConfig::ADC_RANGE,
+                  AppConfig::PH_SAMPLE_COUNT, AppConfig::PH_SLOPE,
+                  AppConfig::PH_CALIBRATION_VALUE);
 
-TempSensor tempSensor(Pins::TEMP_SENSOR, AppConfig::DEFAULT_WATER_TEMPERATURE_C);
-SensorManager sensorManager(tdsSensor, phSensor, tempSensor, AppConfig::DEFAULT_WATER_TEMPERATURE_C);
+TempSensor tempSensor(Pins::TEMP_SENSOR,
+                      AppConfig::DEFAULT_WATER_TEMPERATURE_C);
+SensorManager sensorManager(tdsSensor, phSensor, tempSensor,
+                            AppConfig::DEFAULT_WATER_TEMPERATURE_C);
 
-LcdDisplay lcdDisplay(
-    AppConfig::LCD_I2C_ADDRESS,
-    AppConfig::LCD_COLUMNS,
-    AppConfig::LCD_ROWS
-);
+LcdDisplay lcdDisplay(AppConfig::LCD_I2C_ADDRESS, AppConfig::LCD_COLUMNS,
+                      AppConfig::LCD_ROWS);
 WifiClock wifiClock(AppConfig::WIFI_SSID, AppConfig::WIFI_PASSWORD);
 DosingController dosingController;
 GoogleSheetsLogger sheetsLogger;
 WebDashboardServer webDashboardServer;
 TargetRangeManager targetRangeManager;
+OtaUpdater otaUpdater("alifsyr", "HiDrop");
 
 void setup() {
-    Serial.begin(115200);
-    delay(1000);
+  Serial.begin(115200);
+  delay(1000);
 
-    EEPROM.begin(64);
+  EEPROM.begin(64);
 
-    Wire.begin(Pins::I2C_SDA, Pins::I2C_SCL);
+  Wire.begin(Pins::I2C_SDA, Pins::I2C_SCL);
 
-    targetRangeManager.begin();
-    sensorManager.begin();
-    lcdDisplay.begin();
-    wifiClock.begin();
-    dosingController.begin();
-    sheetsLogger.begin();
-    webDashboardServer.setCommandCallback([](const String &cmd) {
-        return targetRangeManager.handleCommand(cmd);
-    });
-    webDashboardServer.begin();
+  targetRangeManager.begin();
+  sensorManager.begin();
+  lcdDisplay.begin();
+  wifiClock.begin();
+  dosingController.begin();
+  sheetsLogger.begin();
+  webDashboardServer.setCommandCallback(
+      [](const String &cmd) { return targetRangeManager.handleCommand(cmd); });
+  otaUpdater.begin();
+  webDashboardServer.setOtaUpdater(&otaUpdater);
+  webDashboardServer.begin();
 
-    Serial.println();
+  Serial.println();
 }
 
 void loop() {
-    static char serialCommandBuffer[96];
-    static size_t serialCommandLength = 0;
+  static char serialCommandBuffer[96];
+  static size_t serialCommandLength = 0;
 
-    while (Serial.available() > 0) {
-        const char incoming = static_cast<char>(Serial.read());
+  while (Serial.available() > 0) {
+    const char incoming = static_cast<char>(Serial.read());
 
-        if (incoming == '\r') {
-            continue;
-        }
-
-        if (incoming == '\n') {
-            if (serialCommandLength == 0) {
-                continue;
-            }
-
-            serialCommandBuffer[serialCommandLength] = '\0';
-            String command(serialCommandBuffer);
-            command.trim();
-
-            if (command.length() > 0 && !targetRangeManager.handleCommand(command)) {
-                sensorManager.handleCalibrationCommand(command);
-            }
-
-            serialCommandLength = 0;
-            continue;
-        }
-
-        if (serialCommandLength < (sizeof(serialCommandBuffer) - 1)) {
-            serialCommandBuffer[serialCommandLength++] = incoming;
-        } else {
-            serialCommandLength = 0;
-            Serial.println("Serial command too long. Max 95 chars.");
-        }
+    if (incoming == '\r') {
+      continue;
     }
 
-    if (targetRangeManager.consumeDisplayMessage(
-        targetMessageLine1,
-        targetMessageLine2,
-        targetMessageLine3,
-        targetMessageLine4
-    )) {
-        targetMessageUntilMs = millis() + AppConfig::LCD_TARGET_MESSAGE_DURATION_MS;
+    if (incoming == '\n') {
+      if (serialCommandLength == 0) {
+        continue;
+      }
+
+      serialCommandBuffer[serialCommandLength] = '\0';
+      String command(serialCommandBuffer);
+      command.trim();
+
+      if (command.length() > 0 && !targetRangeManager.handleCommand(command)) {
+        sensorManager.handleCalibrationCommand(command);
+      }
+
+      serialCommandLength = 0;
+      continue;
     }
 
-    sensorManager.update();
-    wifiClock.update();
+    if (serialCommandLength < (sizeof(serialCommandBuffer) - 1)) {
+      serialCommandBuffer[serialCommandLength++] = incoming;
+    } else {
+      serialCommandLength = 0;
+      Serial.println("Serial command too long. Max 95 chars.");
+    }
+  }
 
-    static unsigned long lastPrintMs = 0;
-    static unsigned long lastLcdMs = 0;
-    const unsigned long now = millis();
-    const bool wifiConnected = wifiClock.isConnected();
-    SensorData currentData = sensorManager.getSensorData();
-    struct tm localTimeInfo = {};
-    const bool timeValid = wifiClock.getLocalTime(localTimeInfo);
+  if (targetRangeManager.consumeDisplayMessage(
+          targetMessageLine1, targetMessageLine2, targetMessageLine3,
+          targetMessageLine4)) {
+    targetMessageUntilMs = millis() + AppConfig::LCD_TARGET_MESSAGE_DURATION_MS;
+  }
 
-    if (!wifiConnected) {
-        wasWifiConnected = false;
-        initFinishStartMs = 0;
-    } else if (!wasWifiConnected) {
-        wasWifiConnected = true;
-        initFinishStartMs = now;
+  sensorManager.update();
+  wifiClock.update();
+  otaUpdater.update();
+
+  static unsigned long lastPrintMs = 0;
+  static unsigned long lastLcdMs = 0;
+  const unsigned long now = millis();
+  const bool wifiConnected = wifiClock.isConnected();
+  SensorData currentData = sensorManager.getSensorData();
+  struct tm localTimeInfo = {};
+  const bool timeValid = wifiClock.getLocalTime(localTimeInfo);
+
+  if (!wifiConnected) {
+    wasWifiConnected = false;
+    initFinishStartMs = 0;
+  } else if (!wasWifiConnected) {
+    wasWifiConnected = true;
+    initFinishStartMs = now;
+    Serial.print("WiFi Connected! IP Address: ");
+    Serial.println(WiFi.localIP());
+  }
+
+  dosingController.update(currentData, sensorManager.isCalibrationMode(),
+                          timeValid ? &localTimeInfo : nullptr, timeValid,
+                          targetRangeManager.getRanges());
+
+  DosingReport completedReport;
+  if (dosingController.consumeCompletedReport(completedReport)) {
+    webDashboardServer.addCompletedReport(completedReport);
+    sheetsLogger.queueReport(completedReport);
+  }
+
+  sheetsLogger.update(wifiConnected);
+  webDashboardServer.update(
+      currentData, targetRangeManager.getRanges(), sensorManager.getMode(),
+      sensorManager.isCalibrationMode(), dosingController.getDisplayMode(),
+      dosingController.isBusy(), dosingController.getStateLabel(),
+      wifiConnected, timeValid ? &localTimeInfo : nullptr, timeValid);
+  webDashboardServer.handleClient();
+
+  if (!sensorManager.isCalibrationMode() &&
+      (now - lastPrintMs >= AppConfig::SENSOR_PRINT_INTERVAL_MS)) {
+    lastPrintMs = now;
+
+    Serial.print("Temp: ");
+    Serial.print(currentData.temperatureC, 2);
+    Serial.print(" C | TDS: ");
+    Serial.print(currentData.tds, 0);
+    Serial.print(" ppm | pH: ");
+    Serial.println(currentData.phValue, 2);
+  }
+
+  if (now - lastLcdMs >= AppConfig::LCD_REFRESH_INTERVAL_MS) {
+    lastLcdMs = now;
+
+    if (now < targetMessageUntilMs) {
+      lcdDisplay.showMessage(targetMessageLine1, targetMessageLine2,
+                             targetMessageLine3, targetMessageLine4);
+      return;
     }
 
-    dosingController.update(
-        currentData,
-        sensorManager.isCalibrationMode(),
-        timeValid ? &localTimeInfo : nullptr,
-        timeValid,
-        targetRangeManager.getRanges()
-    );
-
-    DosingReport completedReport;
-    if (dosingController.consumeCompletedReport(completedReport)) {
-        webDashboardServer.addCompletedReport(completedReport);
-        sheetsLogger.queueReport(completedReport);
+    if (initFinishStartMs != 0 &&
+        (now - initFinishStartMs) < AppConfig::LCD_INIT_FINISH_DURATION_MS) {
+      lcdDisplay.showInitializingFinish();
+      return;
     }
 
-    sheetsLogger.update(wifiConnected);
-    webDashboardServer.update(
-        currentData,
-        targetRangeManager.getRanges(),
-        sensorManager.getMode(),
-        sensorManager.isCalibrationMode(),
-        dosingController.getDisplayMode(),
-        dosingController.isBusy(),
-        dosingController.getStateLabel(),
-        wifiConnected,
-        timeValid ? &localTimeInfo : nullptr,
-        timeValid
-    );
-    webDashboardServer.handleClient();
-
-    if (!sensorManager.isCalibrationMode() && (now - lastPrintMs >= AppConfig::SENSOR_PRINT_INTERVAL_MS)) {
-        lastPrintMs = now;
-
-        Serial.print("Temp: ");
-        Serial.print(currentData.temperatureC, 2);
-        Serial.print(" C | TDS: ");
-        Serial.print(currentData.tds, 0);
-        Serial.print(" ppm | pH: ");
-        Serial.println(currentData.phValue, 2);
-    }
-
-    if (now - lastLcdMs >= AppConfig::LCD_REFRESH_INTERVAL_MS) {
-        lastLcdMs = now;
-
-        if (now < targetMessageUntilMs) {
-            lcdDisplay.showMessage(
-                targetMessageLine1,
-                targetMessageLine2,
-                targetMessageLine3,
-                targetMessageLine4
-            );
-            return;
-        }
-
-        if (!wifiConnected) {
-            lcdDisplay.showInitializing();
-            return;
-        }
-
-        if (initFinishStartMs != 0 && (now - initFinishStartMs) < AppConfig::LCD_INIT_FINISH_DURATION_MS) {
-            lcdDisplay.showInitializingFinish();
-            return;
-        }
-
-        lcdDisplay.show(
-            currentData,
-            dosingController.getDisplayMode(),
-            wifiConnected,
-            timeValid ? &localTimeInfo : nullptr,
-            timeValid
-        );
-    }
+    lcdDisplay.show(currentData, dosingController.getDisplayMode(),
+                    wifiConnected, timeValid ? &localTimeInfo : nullptr,
+                    timeValid);
+  }
 }

@@ -54,7 +54,12 @@ def load_env_values():
 
 
 def get_value(name, fallback=""):
-    return os.environ.get(name, FILE_ENV.get(name, fallback))
+    # Check OS environment for exactly 'name' or 'APP_name'
+    if name in os.environ:
+        return os.environ[name]
+    if f"APP_{name}" in os.environ:
+        return os.environ[f"APP_{name}"]
+    return FILE_ENV.get(name, fallback)
 
 
 def as_bool_literal(value):
