@@ -49,7 +49,11 @@ bool WifiClock::getLocalTime(struct tm &timeInfo) const {
 
 void WifiClock::beginWifiConnection() {
     _lastWifiAttemptMs = millis();
-    WiFi.begin(_ssid, _password);
+    if (_ssid != nullptr && strlen(_ssid) > 0) {
+        WiFi.begin(_ssid, _password);
+    } else {
+        WiFi.begin();
+    }
 }
 
 void WifiClock::configureTimeIfNeeded() {
