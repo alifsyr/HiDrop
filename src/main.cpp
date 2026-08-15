@@ -70,18 +70,47 @@ void setup() {
     wifiClock.begin();
     dosingController.begin();
     sheetsLogger.begin();
+    webDashboardServer.setCommandCallback([](const String &cmd) {
+        return targetRangeManager.handleCommand(cmd);
+    });
     webDashboardServer.begin();
 
     Serial.println();
 }
 
 void loop() {
-    if (Serial.available()) {
-        String command = Serial.readStringUntil('\n');
-        command.trim();
+    static char serialCommandBuffer[96];
+    static size_t serialCommandLength = 0;
 
-        if (command.length() > 0 && !targetRangeManager.handleCommand(command)) {
-            sensorManager.handleCalibrationCommand(command);
+    while (Serial.available() > 0) {
+        const char incoming = static_cast<char>(Serial.read());
+
+        if (incoming == '\r') {
+            continue;
+        }
+
+        if (incoming == '\n') {
+            if (serialCommandLength == 0) {
+                continue;
+            }
+
+            serialCommandBuffer[serialCommandLength] = '\0';
+            String command(serialCommandBuffer);
+            command.trim();
+
+            if (command.length() > 0 && !targetRangeManager.handleCommand(command)) {
+                sensorManager.handleCalibrationCommand(command);
+            }
+
+            serialCommandLength = 0;
+            continue;
+        }
+
+        if (serialCommandLength < (sizeof(serialCommandBuffer) - 1)) {
+            serialCommandBuffer[serialCommandLength++] = incoming;
+        } else {
+            serialCommandLength = 0;
+            Serial.println("Serial command too long. Max 95 chars.");
         }
     }
 

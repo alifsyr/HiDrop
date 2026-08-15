@@ -245,6 +245,67 @@ const char *kDashboardPage = R"HTML(
       color: var(--text);
     }
 
+    /* Slider Styles */
+    .slider-group {
+      margin-bottom: 20px;
+    }
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .slider-label {
+      font-weight: 600;
+      color: var(--text);
+    }
+    .slider-value {
+      font-family: var(--mono);
+      color: var(--accent);
+      font-weight: 700;
+    }
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 100%;
+      background: transparent;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      height: 24px;
+      width: 24px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      margin-top: -8px;
+      box-shadow: 0 2px 6px rgba(13, 141, 119, 0.4);
+    }
+    input[type=range]::-webkit-slider-runnable-track {
+      width: 100%;
+      height: 8px;
+      cursor: pointer;
+      background: rgba(13, 141, 119, 0.2);
+      border-radius: 4px;
+    }
+    .btn {
+      display: inline-block;
+      padding: 12px 24px;
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      width: 100%;
+    }
+    .btn:hover {
+      background: #0a6c5b;
+    }
+    .btn:disabled {
+      background: var(--muted);
+      cursor: not-allowed;
+    }
+
     @media (max-width: 860px) {
       .chart-grid {
         grid-template-columns: 1fr;
@@ -338,6 +399,49 @@ const char *kDashboardPage = R"HTML(
     </section>
 
     <section class="panel" style="margin-top:18px">
+      <div class="section-head">
+        <h2>Target Settings</h2>
+        <span class="meta">Adjust dosing targets</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px;">
+        <div>
+          <div class="slider-group">
+            <div class="slider-header">
+              <span class="slider-label">pH Minimum</span>
+              <span class="slider-value" id="phMinVal">-</span>
+            </div>
+            <input type="range" id="phMinSlider" min="0" max="14" step="0.1" value="5.8" oninput="document.getElementById('phMinVal').textContent = Number(this.value).toFixed(2)">
+          </div>
+          <div class="slider-group">
+            <div class="slider-header">
+              <span class="slider-label">pH Maximum</span>
+              <span class="slider-value" id="phMaxVal">-</span>
+            </div>
+            <input type="range" id="phMaxSlider" min="0" max="14" step="0.1" value="6.2" oninput="document.getElementById('phMaxVal').textContent = Number(this.value).toFixed(2)">
+          </div>
+        </div>
+        <div>
+          <div class="slider-group">
+            <div class="slider-header">
+              <span class="slider-label">PPM Minimum</span>
+              <span class="slider-value" id="ppmMinVal">-</span>
+            </div>
+            <input type="range" id="ppmMinSlider" min="0" max="2000" step="10" value="600" oninput="document.getElementById('ppmMinVal').textContent = this.value">
+          </div>
+          <div class="slider-group">
+            <div class="slider-header">
+              <span class="slider-label">PPM Maximum</span>
+              <span class="slider-value" id="ppmMaxVal">-</span>
+            </div>
+            <input type="range" id="ppmMaxSlider" min="0" max="2000" step="10" value="800" oninput="document.getElementById('ppmMaxVal').textContent = this.value">
+          </div>
+        </div>
+      </div>
+      <button id="saveTargetsBtn" class="btn" style="margin-top: 16px;" onclick="saveTargets()">Save Targets</button>
+      <div id="saveTargetsStatus" style="margin-top: 8px; font-size: 0.9rem; text-align: center; color: var(--ok); display: none;">Saved successfully!</div>
+    </section>
+
+    <section class="panel" style="margin-top:18px">
       <h2>Recent Dosing Reports</h2>
       <div id="reportContainer">
         <p class="empty">Belum ada event dosing yang selesai.</p>
@@ -347,10 +451,24 @@ const char *kDashboardPage = R"HTML(
 
   <script>
     const refreshIntervalMs = __REFRESH_INTERVAL_MS__;
+    const historyRefreshIntervalMs = __HISTORY_REFRESH_INTERVAL_MS__;
+    const reportsRefreshIntervalMs = __REPORTS_REFRESH_INTERVAL_MS__;
+    let latestStatus = null;
+    let latestHistory = null;
 
     function formatNumber(value, digits) {
       if (typeof value !== "number" || Number.isNaN(value)) return "-";
       return value.toFixed(digits);
+    }
+
+    function formatDurationLabel(totalMs) {
+      const totalSeconds = Math.max(0, Math.round((Number(totalMs) || 0) / 1000));
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+      if (hours > 0) return `${hours}h ${minutes}m`;
+      if (minutes > 0) return `${minutes}m ${seconds}s`;
+      return `${seconds}s`;
     }
 
     function createChartEmptyState(svgId, message) {
@@ -373,32 +491,33 @@ const char *kDashboardPage = R"HTML(
         svgId,
         rangeId,
         latestId,
-        points,
-        key,
+        values,
         digits,
         unit,
         color,
         targetMin,
         targetMax,
         hardMin,
-        hardMax
+        hardMax,
+        sampleIntervalMs,
+        lastLabel
       } = options;
 
       const svg = document.getElementById(svgId);
       const rangeLabel = document.getElementById(rangeId);
       const latestLabel = document.getElementById(latestId);
-      if (!Array.isArray(points) || points.length < 2) {
+      if (!Array.isArray(values) || values.length < 2) {
         createChartEmptyState(svgId, "Need more samples to draw chart");
         rangeLabel.textContent = "Collecting history...";
         latestLabel.textContent = "-";
         return;
       }
 
-      const values = points
-        .map((point) => Number(point?.[key]))
+      const numericValues = values
+        .map((value) => Number(value))
         .filter((value) => Number.isFinite(value));
 
-      if (values.length < 2) {
+      if (numericValues.length < 2) {
         createChartEmptyState(svgId, "Invalid chart data");
         rangeLabel.textContent = "Collecting history...";
         latestLabel.textContent = "-";
@@ -411,23 +530,23 @@ const char *kDashboardPage = R"HTML(
       const chartWidth = width - margin.left - margin.right;
       const chartHeight = height - margin.top - margin.bottom;
 
-      let minValue = Math.min(...values, Number(targetMin));
-      let maxValue = Math.max(...values, Number(targetMax));
+      let minValue = Math.min(...numericValues, Number(targetMin));
+      let maxValue = Math.max(...numericValues, Number(targetMax));
       if (!Number.isFinite(minValue)) minValue = hardMin;
       if (!Number.isFinite(maxValue)) maxValue = hardMax;
 
-      const spread = Math.max(maxValue - minValue, key === "ph" ? 0.4 : 50);
+      const spread = Math.max(maxValue - minValue, digits === 2 ? 0.4 : 50);
       minValue -= spread * 0.18;
       maxValue += spread * 0.18;
       minValue = Math.max(hardMin, minValue);
       maxValue = Math.min(hardMax, maxValue);
       if (maxValue <= minValue) {
-        maxValue = minValue + (key === "ph" ? 1 : 100);
+        maxValue = minValue + (digits === 2 ? 1 : 100);
       }
 
-      const scaleX = (index) => margin.left + (index / (values.length - 1)) * chartWidth;
+      const scaleX = (index) => margin.left + (index / (numericValues.length - 1)) * chartWidth;
       const scaleY = (value) => margin.top + ((maxValue - value) / (maxValue - minValue)) * chartHeight;
-      const chartPoints = values.map((value, index) => ({ x: scaleX(index), y: scaleY(value), value }));
+      const chartPoints = numericValues.map((value, index) => ({ x: scaleX(index), y: scaleY(value), value }));
 
       const path = buildChartPath(chartPoints);
       const areaPath = `${path} L ${chartPoints[chartPoints.length - 1].x.toFixed(2)} ${(margin.top + chartHeight).toFixed(2)} L ${chartPoints[0].x.toFixed(2)} ${(margin.top + chartHeight).toFixed(2)} Z`;
@@ -445,9 +564,9 @@ const char *kDashboardPage = R"HTML(
         `;
       }).join("");
 
-      const firstLabel = points[0]?.label || "Start";
-      const lastLabel = points[points.length - 1]?.label || "Now";
-      const lastValue = values[values.length - 1];
+      const windowMs = Math.max(0, (numericValues.length - 1) * Math.max(0, Number(sampleIntervalMs) || 0));
+      const firstLabel = windowMs > 0 ? `-${formatDurationLabel(windowMs)}` : "Start";
+      const lastValue = numericValues[numericValues.length - 1];
 
       svg.innerHTML = `
         <rect x="0" y="0" width="${width}" height="${height}" rx="18" fill="rgba(13, 141, 119, 0.02)"></rect>
@@ -472,10 +591,10 @@ const char *kDashboardPage = R"HTML(
           </circle>
         `).join("")}
         <text x="${margin.left}" y="${height - 10}" fill="#5f786d" font-size="11">${firstLabel}</text>
-        <text x="${(margin.left + chartWidth).toFixed(2)}" y="${height - 10}" text-anchor="end" fill="#5f786d" font-size="11">${lastLabel}</text>
+        <text x="${(margin.left + chartWidth).toFixed(2)}" y="${height - 10}" text-anchor="end" fill="#5f786d" font-size="11">${lastLabel || "Now"}</text>
       `;
 
-      rangeLabel.textContent = `Window ${firstLabel} - ${lastLabel} | Target ${formatNumber(targetMin, digits)} - ${formatNumber(targetMax, digits)} ${unit}`;
+      rangeLabel.textContent = `Window ${formatDurationLabel(windowMs)} | Target ${formatNumber(targetMin, digits)} - ${formatNumber(targetMax, digits)} ${unit}`;
       latestLabel.textContent = `${formatNumber(lastValue, digits)} ${unit}`;
     }
 
@@ -514,7 +633,48 @@ const char *kDashboardPage = R"HTML(
       `;
     }
 
+    function renderHistory() {
+      const sampleIntervalMs = Number(latestHistory?.sample_interval_ms || 0);
+      const lastLabel = latestStatus?.device?.time_valid ? (latestStatus?.device?.time || "Now") : "Now";
+
+      renderLineChart({
+        svgId: "phChart",
+        rangeId: "phChartRange",
+        latestId: "phChartLatest",
+        values: Array.isArray(latestHistory?.ph_x100) ? latestHistory.ph_x100.map((value) => Number(value) / 100) : [],
+        digits: 2,
+        unit: "pH",
+        color: "#0d8d77",
+        targetMin: Number(latestStatus?.targets?.ph_min || 0),
+        targetMax: Number(latestStatus?.targets?.ph_max || 14),
+        hardMin: 0,
+        hardMax: 14,
+        sampleIntervalMs,
+        lastLabel
+      });
+      renderLineChart({
+        svgId: "ppmChart",
+        rangeId: "ppmChartRange",
+        latestId: "ppmChartLatest",
+        values: Array.isArray(latestHistory?.ppm) ? latestHistory.ppm.map((value) => Number(value)) : [],
+        digits: 0,
+        unit: "ppm",
+        color: "#2b6cb0",
+        targetMin: Number(latestStatus?.targets?.ppm_min || 0),
+        targetMax: Number(latestStatus?.targets?.ppm_max || 1500),
+        hardMin: 0,
+        hardMax: 5000,
+        sampleIntervalMs,
+        lastLabel
+      });
+    }
+
+    function applyReports(reports) {
+      renderReports(Array.isArray(reports) ? reports : []);
+    }
+
     function applyStatus(data) {
+      latestStatus = data;
       const wifiOk = Boolean(data?.device?.wifi_connected);
       document.getElementById("heroStatus").textContent = wifiOk
         ? "Device online and serving live telemetry"
@@ -532,39 +692,27 @@ const char *kDashboardPage = R"HTML(
       document.getElementById("ppmMeta").textContent = `Target: ${formatNumber(data?.targets?.ppm_min, 0)} - ${formatNumber(data?.targets?.ppm_max, 0)}`;
       document.getElementById("tempMeta").textContent = `Voltage pH probe: ${formatNumber(data?.sensor?.ph_voltage, 3)} V`;
       document.getElementById("dosingMeta").textContent = `Mode: ${data?.dosing?.display_mode || "-"} | Busy: ${data?.dosing?.busy ? "YES" : "NO"}`;
-
-      renderLineChart({
-        svgId: "phChart",
-        rangeId: "phChartRange",
-        latestId: "phChartLatest",
-        points: data?.history?.points || [],
-        key: "ph",
-        digits: 2,
-        unit: "pH",
-        color: "#0d8d77",
-        targetMin: Number(data?.targets?.ph_min || 0),
-        targetMax: Number(data?.targets?.ph_max || 14),
-        hardMin: 0,
-        hardMax: 14
-      });
-      renderLineChart({
-        svgId: "ppmChart",
-        rangeId: "ppmChartRange",
-        latestId: "ppmChartLatest",
-        points: data?.history?.points || [],
-        key: "ppm",
-        digits: 0,
-        unit: "ppm",
-        color: "#2b6cb0",
-        targetMin: Number(data?.targets?.ppm_min || 0),
-        targetMax: Number(data?.targets?.ppm_max || 1500),
-        hardMin: 0,
-        hardMax: 5000
-      });
-      renderReports(data?.reports || []);
+      
+      if (!isEditingTargets && data?.targets) {
+        document.getElementById('phMinSlider').value = data.targets.ph_min;
+        document.getElementById('phMinVal').textContent = formatNumber(data.targets.ph_min, 2);
+        document.getElementById('phMaxSlider').value = data.targets.ph_max;
+        document.getElementById('phMaxVal').textContent = formatNumber(data.targets.ph_max, 2);
+        document.getElementById('ppmMinSlider').value = data.targets.ppm_min;
+        document.getElementById('ppmMinVal').textContent = formatNumber(data.targets.ppm_min, 0);
+        document.getElementById('ppmMaxSlider').value = data.targets.ppm_max;
+        document.getElementById('ppmMaxVal').textContent = formatNumber(data.targets.ppm_max, 0);
+      }
+      
+      renderHistory();
     }
 
-    async function refresh() {
+    function applyHistory(data) {
+      latestHistory = data;
+      renderHistory();
+    }
+
+    async function refreshStatus() {
       try {
         const response = await fetch("/api/status", { cache: "no-store" });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -575,8 +723,83 @@ const char *kDashboardPage = R"HTML(
       }
     }
 
-    refresh();
-    setInterval(refresh, refreshIntervalMs);
+    async function refreshHistory() {
+      try {
+        const response = await fetch("/api/history", { cache: "no-store" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        applyHistory(await response.json());
+      } catch (error) {
+        createChartEmptyState("phChart", `Failed to load chart data: ${error.message}`);
+        createChartEmptyState("ppmChart", `Failed to load chart data: ${error.message}`);
+        document.getElementById("phChartRange").textContent = "History unavailable";
+        document.getElementById("ppmChartRange").textContent = "History unavailable";
+        document.getElementById("phChartLatest").textContent = "-";
+        document.getElementById("ppmChartLatest").textContent = "-";
+      }
+    }
+
+    async function refreshReports() {
+      try {
+        const response = await fetch("/api/reports", { cache: "no-store" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        applyReports(await response.json());
+      } catch (_error) {
+      }
+    }
+
+    let isEditingTargets = false;
+    const targetSliders = ['phMinSlider', 'phMaxSlider', 'ppmMinSlider', 'ppmMaxSlider'];
+    targetSliders.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('mousedown', () => isEditingTargets = true);
+        el.addEventListener('touchstart', () => isEditingTargets = true, {passive: true});
+        el.addEventListener('change', () => isEditingTargets = false);
+      }
+    });
+
+    async function saveTargets() {
+      const btn = document.getElementById('saveTargetsBtn');
+      const status = document.getElementById('saveTargetsStatus');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+      
+      const body = new URLSearchParams({
+        ph_min: document.getElementById('phMinSlider').value,
+        ph_max: document.getElementById('phMaxSlider').value,
+        ppm_min: document.getElementById('ppmMinSlider').value,
+        ppm_max: document.getElementById('ppmMaxSlider').value
+      });
+
+      try {
+        const response = await fetch('/api/settings/targets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: body
+        });
+        if (!response.ok) throw new Error('Failed to save');
+        status.textContent = 'Saved successfully!';
+        status.style.color = 'var(--ok)';
+        status.style.display = 'block';
+        setTimeout(() => status.style.display = 'none', 3000);
+        refreshStatus();
+      } catch (err) {
+        status.textContent = err.message;
+        status.style.color = 'var(--danger)';
+        status.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save Targets';
+        isEditingTargets = false;
+      }
+    }
+
+    refreshStatus();
+    refreshHistory();
+    refreshReports();
+    setInterval(refreshStatus, refreshIntervalMs);
+    setInterval(refreshHistory, historyRefreshIntervalMs);
+    setInterval(refreshReports, reportsRefreshIntervalMs);
   </script>
 </body>
 </html>
@@ -597,10 +820,15 @@ void WebDashboardServer::begin() {
         return;
     }
 
+    _cachedHtmlPage = buildHtmlPage();
     registerRoutes();
     _server.begin();
     Serial.print("Web dashboard listening on port ");
     Serial.println(AppConfig::WEB_SERVER_PORT);
+}
+
+void WebDashboardServer::setCommandCallback(CommandCallback cb) {
+    _commandCallback = cb;
 }
 
 void WebDashboardServer::update(
@@ -647,7 +875,7 @@ void WebDashboardServer::update(
     const unsigned long now = millis();
     if (_historySampleCount == 0 ||
         (now - _lastHistorySampleMs) >= AppConfig::WEB_DASHBOARD_HISTORY_SAMPLE_INTERVAL_MS) {
-        addHistorySample(sensorData, localTime, timeValid);
+        addHistorySample(sensorData);
         _lastHistorySampleMs = now;
     }
 
@@ -683,13 +911,16 @@ void WebDashboardServer::addCompletedReport(const DosingReport &report) {
 void WebDashboardServer::registerRoutes() {
     _server.on("/", HTTP_GET, [this]() { handleRoot(); });
     _server.on("/api/status", HTTP_GET, [this]() { handleStatus(); });
+    _server.on("/api/history", HTTP_GET, [this]() { handleHistory(); });
+    _server.on("/api/reports", HTTP_GET, [this]() { handleReports(); });
+    _server.on("/api/settings/targets", HTTP_POST, [this]() { handleSetTargets(); });
     _server.onNotFound([this]() {
         _server.send(404, "application/json", "{\"error\":\"not_found\"}");
     });
 }
 
 void WebDashboardServer::handleRoot() {
-    _server.send(200, "text/html; charset=utf-8", buildHtmlPage());
+    _server.send(200, "text/html; charset=utf-8", _cachedHtmlPage);
 }
 
 void WebDashboardServer::handleStatus() {
@@ -697,16 +928,59 @@ void WebDashboardServer::handleStatus() {
     _server.send(200, "application/json; charset=utf-8", buildStatusJson());
 }
 
+void WebDashboardServer::handleHistory() {
+    _server.sendHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+    _server.send(200, "application/json; charset=utf-8", buildHistoryJson());
+}
+
+void WebDashboardServer::handleReports() {
+    _server.sendHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+    _server.send(200, "application/json; charset=utf-8", buildRecentReportsJson());
+}
+
+void WebDashboardServer::handleSetTargets() {
+    if (!_server.hasArg("ph_min") || !_server.hasArg("ph_max") ||
+        !_server.hasArg("ppm_min") || !_server.hasArg("ppm_max")) {
+        _server.send(400, "application/json", "{\"error\":\"missing_arguments\"}");
+        return;
+    }
+
+    const String phMin = _server.arg("ph_min");
+    const String phMax = _server.arg("ph_max");
+    const String ppmMin = _server.arg("ppm_min");
+    const String ppmMax = _server.arg("ppm_max");
+
+    bool success = true;
+    if (_commandCallback) {
+        if (!_commandCallback("SET PH " + phMin + " " + phMax)) success = false;
+        if (!_commandCallback("SET PPM " + ppmMin + " " + ppmMax)) success = false;
+    }
+
+    if (success) {
+        _server.send(200, "application/json", "{\"success\":true}");
+    } else {
+        _server.send(400, "application/json", "{\"error\":\"invalid_values\"}");
+    }
+}
+
 String WebDashboardServer::buildHtmlPage() const {
     String page(kDashboardPage);
     page.replace("__DASHBOARD_TITLE__", AppConfig::WEB_DASHBOARD_TITLE);
     page.replace("__REFRESH_INTERVAL_MS__", String(AppConfig::WEB_DASHBOARD_REFRESH_INTERVAL_MS));
+    page.replace(
+        "__HISTORY_REFRESH_INTERVAL_MS__",
+        String(AppConfig::WEB_DASHBOARD_HISTORY_SAMPLE_INTERVAL_MS)
+    );
+    page.replace(
+        "__REPORTS_REFRESH_INTERVAL_MS__",
+        String(AppConfig::WEB_DASHBOARD_REPORTS_REFRESH_INTERVAL_MS)
+    );
     return page;
 }
 
 String WebDashboardServer::buildStatusJson() const {
     String json;
-    json.reserve(12288);
+    json.reserve(960);
 
     json += "{";
     json += "\"device\":{";
@@ -730,15 +1004,11 @@ String WebDashboardServer::buildStatusJson() const {
     json += String(_snapshot.sensorData.phVoltage, 3);
     json += ",\"ph\":";
     json += String(_snapshot.sensorData.phValue, 2);
-    json += ",\"mode\":\"" + escapeJson(String(_snapshot.sensorMode)) + "\"";
+    json += ",\"mode\":\"";
+    json += escapeJson(String(_snapshot.sensorMode));
+    json += "\"";
     json += ",\"calibration_mode\":";
     json += _snapshot.calibrationMode ? "true" : "false";
-    json += ",\"ph_band\":\"";
-    json += sensorBandLabel(_snapshot.sensorData.phValue, _snapshot.targets.phMin, _snapshot.targets.phMax);
-    json += "\"";
-    json += ",\"ppm_band\":\"";
-    json += sensorBandLabel(_snapshot.sensorData.tds, _snapshot.targets.ppmMin, _snapshot.targets.ppmMax);
-    json += "\"";
     json += "},";
 
     json += "\"targets\":{";
@@ -759,14 +1029,7 @@ String WebDashboardServer::buildStatusJson() const {
     json += ",\"display_mode\":\"";
     json += displayModeLabel(_snapshot.displayMode);
     json += "\"";
-    json += "},";
-
-    json += "\"history\":";
-    json += buildHistoryJson();
-    json += ",";
-
-    json += "\"reports\":";
-    json += buildRecentReportsJson();
+    json += "}";
     json += "}";
 
     return json;
@@ -778,9 +1041,9 @@ String WebDashboardServer::buildRecentReportsJson() const {
     json += "[";
 
     for (size_t offset = 0; offset < _recentReportCount; ++offset) {
-        const size_t index =
+        const size_t reportIndex =
             (_recentReportHead + kRecentReportsSize - 1 - offset) % kRecentReportsSize;
-        const DosingReport &report = _recentReports[index];
+        const DosingReport &report = _recentReports[reportIndex];
 
         if (offset > 0) {
             json += ",";
@@ -818,55 +1081,47 @@ String WebDashboardServer::buildRecentReportsJson() const {
 
 String WebDashboardServer::buildHistoryJson() const {
     String json;
-    json.reserve(4096);
+    json.reserve(1024);
     json += "{";
     json += "\"sample_interval_ms\":";
     json += String(AppConfig::WEB_DASHBOARD_HISTORY_SAMPLE_INTERVAL_MS);
-    json += ",\"points\":[";
+    json += ",\"ph_x100\":[";
 
     const size_t oldestIndex =
         (_historySampleHead + kHistorySamplesSize - _historySampleCount) % kHistorySamplesSize;
 
     for (size_t offset = 0; offset < _historySampleCount; ++offset) {
-        const size_t index = (oldestIndex + offset) % kHistorySamplesSize;
-        const HistorySample &sample = _historySamples[index];
+        const size_t historyIndex = (oldestIndex + offset) % kHistorySamplesSize;
+        const HistorySample &sample = _historySamples[historyIndex];
 
         if (offset > 0) {
             json += ",";
         }
 
-        json += "{";
-        json += "\"label\":\"" + escapeJson(String(sample.label)) + "\"";
-        json += ",\"uptime_seconds\":";
-        json += String(sample.uptimeSeconds);
-        json += ",\"ph\":";
-        json += String(sample.ph, 2);
-        json += ",\"ppm\":";
-        json += String(sample.ppm, 0);
-        json += "}";
+        json += String(sample.phX100);
+    }
+
+    json += "],\"ppm\":[";
+
+    for (size_t offset = 0; offset < _historySampleCount; ++offset) {
+        const size_t historyIndex = (oldestIndex + offset) % kHistorySamplesSize;
+        const HistorySample &sample = _historySamples[historyIndex];
+
+        if (offset > 0) {
+            json += ",";
+        }
+
+        json += String(sample.ppm);
     }
 
     json += "]}";
     return json;
 }
 
-void WebDashboardServer::addHistorySample(
-    const SensorData &sensorData,
-    const struct tm *localTime,
-    bool timeValid
-) {
+void WebDashboardServer::addHistorySample(const SensorData &sensorData) {
     HistorySample &sample = _historySamples[_historySampleHead];
-    sample.ph = sensorData.phValue;
-    sample.ppm = sensorData.tds;
-    sample.uptimeSeconds = millis() / 1000UL;
-
-    if (timeValid && localTime != nullptr) {
-        strftime(sample.label, sizeof(sample.label), "%H:%M:%S", localTime);
-    } else {
-        const unsigned long minutes = sample.uptimeSeconds / 60UL;
-        const unsigned long seconds = sample.uptimeSeconds % 60UL;
-        snprintf(sample.label, sizeof(sample.label), "%02lu:%02lu up", minutes, seconds);
-    }
+    sample.phX100 = encodePhX100(sensorData.phValue);
+    sample.ppm = encodePpm(sensorData.tds);
 
     _historySampleHead = (_historySampleHead + 1) % kHistorySamplesSize;
 
@@ -888,8 +1143,8 @@ String WebDashboardServer::escapeJson(const String &value) {
     String escaped;
     escaped.reserve(value.length() + 8);
 
-    for (size_t index = 0; index < value.length(); ++index) {
-        const char character = value.charAt(index);
+    for (size_t charIndex = 0; charIndex < value.length(); ++charIndex) {
+        const char character = value.charAt(charIndex);
 
         switch (character) {
             case '\\':
@@ -916,6 +1171,30 @@ String WebDashboardServer::escapeJson(const String &value) {
     return escaped;
 }
 
+uint16_t WebDashboardServer::encodePhX100(float phValue) {
+    if (phValue <= 0.0f) {
+        return 0;
+    }
+
+    if (phValue >= 14.0f) {
+        return 1400;
+    }
+
+    return static_cast<uint16_t>((phValue * 100.0f) + 0.5f);
+}
+
+uint16_t WebDashboardServer::encodePpm(float ppmValue) {
+    if (ppmValue <= 0.0f) {
+        return 0;
+    }
+
+    if (ppmValue >= 5000.0f) {
+        return 5000;
+    }
+
+    return static_cast<uint16_t>(ppmValue + 0.5f);
+}
+
 const char *WebDashboardServer::displayModeLabel(DisplayMode mode) {
     switch (mode) {
         case DisplayMode::PH_DOWN_DOSE:
@@ -940,16 +1219,4 @@ const char *WebDashboardServer::displayModeLabel(DisplayMode mode) {
         default:
             return "NORMAL";
     }
-}
-
-const char *WebDashboardServer::sensorBandLabel(float value, float minValue, float maxValue) {
-    if (value < minValue) {
-        return "LOW";
-    }
-
-    if (value > maxValue) {
-        return "HIGH";
-    }
-
-    return "OK";
 }

@@ -102,8 +102,8 @@ String LcdDisplay::buildRightWindow(const String &text, uint8_t width, size_t of
     window.reserve(width);
 
     for (uint8_t i = 0; i < width; i++) {
-        const size_t index = (offset + i) % loopText.length();
-        window += loopText.charAt(index);
+        const size_t charIndex = (offset + i) % loopText.length();
+        window += loopText.charAt(charIndex);
     }
 
     return window;

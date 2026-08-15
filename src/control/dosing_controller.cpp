@@ -1,10 +1,18 @@
 #include "control/dosing_controller.h"
 
+#include <algorithm>
+
 #include "config/app_config.h"
 #include "config/pins.h"
 
 namespace {
 constexpr unsigned long kMinRelayOnMs = 500;
+constexpr uint8_t kRelayOnLevel = AppConfig::RELAY_ACTIVE_LOW ? LOW : HIGH;
+constexpr uint8_t kRelayOffLevel = AppConfig::RELAY_ACTIVE_LOW ? HIGH : LOW;
+
+bool isDeadlineReached(unsigned long nowMs, unsigned long deadlineMs) {
+    return static_cast<long>(nowMs - deadlineMs) >= 0;
+}
 }
 
 DosingController::DosingController()
@@ -46,7 +54,11 @@ void DosingController::update(
 
     switch (_state) {
         case State::IDLE: {
-            if (now < _startupReadyMs || now < _cooldownUntilMs) {
+            const bool startupReady = isDeadlineReached(now, _startupReadyMs);
+            const bool cooldownDone =
+                (_cooldownUntilMs == 0UL) || isDeadlineReached(now, _cooldownUntilMs);
+
+            if (!startupReady || !cooldownDone) {
                 return;
             }
 
@@ -286,7 +298,7 @@ unsigned long DosingController::nutrientDoseDurationMs() const {
         AppConfig::NUTRI_B_DOSE_STEP_ML,
         AppConfig::NUTRI_B_FLOW_ML_PER_SEC
     );
-    return durationA >= durationB ? durationA : durationB;
+    return std::max(durationA, durationB);
 }
 
 float DosingController::deliveredMlForDuration(float flowMlPerSecond, unsigned long durationMs) const {
@@ -371,8 +383,7 @@ void DosingController::stopAllRelays() {
 }
 
 void DosingController::setRelay(uint8_t pin, bool active) {
-    const bool activeLow = AppConfig::RELAY_ACTIVE_LOW;
-    digitalWrite(pin, active ? (activeLow ? LOW : HIGH) : (activeLow ? HIGH : LOW));
+    digitalWrite(pin, active ? kRelayOnLevel : kRelayOffLevel);
 }
 
 String DosingController::formatDate(const struct tm &localTime) const {
