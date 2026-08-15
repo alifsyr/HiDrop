@@ -772,7 +772,7 @@ const char *kDashboardPage = R"HTML(
       let max = parseFloat(maxSlider.value);
       
       // Use larger gap for PPM
-      const minGap = prefix === 'ph' ? 0.2 : 50;
+      const minGap = prefix === 'ph' ? 0.2 : 150;
 
       if (min > max - minGap) {
         if (triggerEl === minSlider) {
