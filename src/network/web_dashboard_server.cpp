@@ -465,8 +465,8 @@ const char *kDashboardPage = R"HTML(
             <div class="range-slider">
               <div class="range-slider-track"></div>
               <div class="range-slider-progress" id="ppmProgress"></div>
-              <input type="range" id="ppmMinSlider" min="400" max="1400" step="50" value="600" oninput="updateDualSlider(this, 'ppm')" onchange="saveTarget('ppm')">
-              <input type="range" id="ppmMaxSlider" min="400" max="1400" step="50" value="800" oninput="updateDualSlider(this, 'ppm')" onchange="saveTarget('ppm')">
+              <input type="range" id="ppmMinSlider" min="0" max="5000" step="50" value="600" oninput="updateDualSlider(this, 'ppm')" onchange="saveTarget('ppm')">
+              <input type="range" id="ppmMaxSlider" min="0" max="5000" step="50" value="800" oninput="updateDualSlider(this, 'ppm')" onchange="saveTarget('ppm')">
             </div>
             <div id="ppmSaveStatus" style="margin-top: 8px; font-size: 0.85rem; color: var(--ok); display: none;">Saved!</div>
           </div>
