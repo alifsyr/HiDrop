@@ -450,8 +450,8 @@ const char *kDashboardPage = R"HTML(
             <div class="range-slider">
               <div class="range-slider-track"></div>
               <div class="range-slider-progress" id="phProgress"></div>
-              <input type="range" id="phMinSlider" min="4.0" max="8.0" step="0.1" value="5.8" oninput="updateDualSlider(this, 'ph')" onchange="saveTarget('ph')">
-              <input type="range" id="phMaxSlider" min="4.0" max="8.0" step="0.1" value="6.2" oninput="updateDualSlider(this, 'ph')" onchange="saveTarget('ph')">
+              <input type="range" id="phMinSlider" min="5.0" max="7.0" step="0.1" value="5.8" oninput="updateDualSlider(this, 'ph')" onchange="saveTarget('ph')">
+              <input type="range" id="phMaxSlider" min="5.0" max="7.0" step="0.1" value="6.2" oninput="updateDualSlider(this, 'ph')" onchange="saveTarget('ph')">
             </div>
             <div id="phSaveStatus" style="margin-top: 8px; font-size: 0.85rem; color: var(--ok); display: none;">Saved!</div>
           </div>
@@ -465,8 +465,8 @@ const char *kDashboardPage = R"HTML(
             <div class="range-slider">
               <div class="range-slider-track"></div>
               <div class="range-slider-progress" id="ppmProgress"></div>
-              <input type="range" id="ppmMinSlider" min="400" max="1600" step="50" value="600" oninput="updateDualSlider(this, 'ppm')" onchange="saveTarget('ppm')">
-              <input type="range" id="ppmMaxSlider" min="400" max="1600" step="50" value="800" oninput="updateDualSlider(this, 'ppm')" onchange="saveTarget('ppm')">
+              <input type="range" id="ppmMinSlider" min="400" max="1400" step="50" value="600" oninput="updateDualSlider(this, 'ppm')" onchange="saveTarget('ppm')">
+              <input type="range" id="ppmMaxSlider" min="400" max="1400" step="50" value="800" oninput="updateDualSlider(this, 'ppm')" onchange="saveTarget('ppm')">
             </div>
             <div id="ppmSaveStatus" style="margin-top: 8px; font-size: 0.85rem; color: var(--ok); display: none;">Saved!</div>
           </div>
