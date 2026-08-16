@@ -122,33 +122,51 @@ bool OtaUpdater::startUpdate() {
     if (!_updateAvailable || _downloadUrl.isEmpty()) {
         return false;
     }
+    return startUpdateFromUrl(_downloadUrl, nullptr);
+}
+
+bool OtaUpdater::startUpdateFromUrl(const String& url, ProgressCallback progressCb) {
+    if (url.isEmpty()) return false;
     
-    Serial.printf("[OTA] Starting update from %s\n", _downloadUrl.c_str());
+    Serial.printf("[OTA] Starting update from URL: %s\n", url.c_str());
     
     WiFiClientSecure* client = new WiFiClientSecure();
     if (!client) return false;
     
     client->setInsecure();
     
-    // HTTPUpdate natively supports handling redirects (GitHub returns 302 to AWS S3)
     httpUpdate.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
     
-    t_httpUpdate_return ret = httpUpdate.update(*client, _downloadUrl);
+    // Set progress callback if provided
+    int lastReportedPct = -1;
+    if (progressCb) {
+        httpUpdate.onProgress([progressCb, &lastReportedPct](int current, int total) {
+            if (total <= 0) return;
+            int pct = (current * 100) / total;
+            // Only report on significant changes to avoid flooding Firebase
+            if (pct >= lastReportedPct + 5 || pct == 100) {
+                lastReportedPct = pct;
+                progressCb(pct);
+            }
+        });
+    }
+    
+    t_httpUpdate_return ret = httpUpdate.update(*client, url);
     
     delete client;
     
     switch (ret) {
         case HTTP_UPDATE_FAILED:
-            Serial.printf("[OTA] Update failed. Error (%d): %s\n", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
+            Serial.printf("[OTA] Update failed. Error (%d): %s\n",
+                httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
             return false;
         case HTTP_UPDATE_NO_UPDATES:
-            Serial.println("[OTA] No updates");
+            Serial.println("[OTA] No updates available at that URL");
             return false;
         case HTTP_UPDATE_OK:
-            Serial.println("[OTA] Update OK! Restarting...");
-            // ESP will auto-restart
-            return true;
+            Serial.println("[OTA] Update OK! Rebooting...");
+            return true; // ESP32 auto-restarts after this
     }
-    
     return false;
 }
+
