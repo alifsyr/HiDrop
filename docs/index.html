@@ -509,6 +509,9 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getDatabase, ref, onValue, set, get, child } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
+    let isEditingTargets = false;
+    let editingTimer = null;
+
     const firebaseConfig = {
       apiKey: "AIzaSyBndjmNk-7gose5h_pM1bYX1rMI6Z-CgHE",
       authDomain: "hidrop0n1c.firebaseapp.com",
@@ -848,10 +851,6 @@
       renderHistory();
     }
 
-    
-
-    let isEditingTargets = false;
-    let editingTimer = null;
     const targetSliders = ['phMinSlider', 'phMaxSlider', 'ppmMinSlider', 'ppmMaxSlider'];
     targetSliders.forEach(id => {
       const el = document.getElementById(id);
