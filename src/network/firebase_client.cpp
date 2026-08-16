@@ -263,8 +263,7 @@ void FirebaseClient::checkIncomingCommands() {
                 if (jsonData.success) ppm_max = jsonData.doubleValue;
                 
                 if (_commandCallback) {
-                    _commandCallback("SET PH " + String(ph_min) + " " + String(ph_max));
-                    _commandCallback("SET PPM " + String(ppm_min) + " " + String(ppm_max));
+                    _commandCallback("SET ALL " + String(ph_min) + " " + String(ph_max) + " " + String(ppm_min) + " " + String(ppm_max));
                 }
                 
                 // Clear the flag

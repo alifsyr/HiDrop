@@ -31,8 +31,8 @@ bool TargetRangeManager::handleCommand(const String &command) {
         return false;
     }
 
-    String tokens[4];
-    const uint8_t count = tokenize(input, tokens, 4);
+    String tokens[6];
+    const uint8_t count = tokenize(input, tokens, 6);
     if (count == 0) {
         return false;
     }
@@ -91,6 +91,35 @@ bool TargetRangeManager::handleCommand(const String &command) {
             return true;
         }
         return setPpmRange(minValue, maxValue);
+    }
+
+    if (count == 6 && token0 == "SET" && tokens[1] == "ALL") {
+        float phMin = 0.0f, phMax = 0.0f, ppmMin = 0.0f, ppmMax = 0.0f;
+        if (!parseNumber(tokens[2], phMin) || !parseNumber(tokens[3], phMax) ||
+            !parseNumber(tokens[4], ppmMin) || !parseNumber(tokens[5], ppmMax)) {
+            Serial.println("Invalid number format. Example: SET ALL 5.8 6.2 600 800");
+            return true;
+        }
+
+        if (!isValidPhRange(phMin, phMax) || !isValidPpmRange(ppmMin, ppmMax)) {
+            Serial.println("Invalid ranges.");
+            return true;
+        }
+
+        _ranges.phMin = phMin;
+        _ranges.phMax = phMax;
+        _ranges.ppmMin = ppmMin;
+        _ranges.ppmMax = ppmMax;
+        saveToEeprom();
+        setDisplayMessage(
+            "Targets Saved",
+            "pH " + String(_ranges.phMin, 2) + " - " + String(_ranges.phMax, 2),
+            "PPM " + String(_ranges.ppmMin, 0) + " - " + String(_ranges.ppmMax, 0),
+            "Saved to Cloud & EEPROM"
+        );
+        Serial.println("All targets updated.");
+        printRanges();
+        return true;
     }
 
     return false;
