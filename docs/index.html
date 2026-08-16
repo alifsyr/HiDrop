@@ -1063,7 +1063,14 @@
     if(db) {
       const statusRef = ref(db, 'hydroponic/status');
       onValue(statusRef, (snapshot) => {
-        if(snapshot.exists()) applyStatus(snapshot.val());
+        if(snapshot.exists()) {
+          try {
+            applyStatus(snapshot.val());
+          } catch(e) {
+            document.getElementById("heroStatus").textContent = "JS Error: " + e.message;
+            console.error("applyStatus error:", e);
+          }
+        }
       });
 
       const historyRef = ref(db, 'hydroponic/history');
