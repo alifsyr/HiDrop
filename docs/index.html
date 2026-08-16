@@ -771,7 +771,7 @@
         ? "Device online and serving live telemetry"
         : "Device offline (showing last known state)";
       document.getElementById("wifiDot").classList.toggle("ok", isOnline);
-      document.getElementById("refreshedAt").textContent = new Date(lastUpdateMs || nowMs).toLocaleTimeString();
+      document.getElementById("refreshedAt").textContent = new Date(lastUpdateMs || nowMs).toLocaleTimeString("id-ID", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
       document.getElementById("ipAddress").textContent = `IP: ${data?.device?.ip_address || "-"}`;
 
@@ -844,13 +844,25 @@
     
 
     let isEditingTargets = false;
+    let editingTimer = null;
     const targetSliders = ['phMinSlider', 'phMaxSlider', 'ppmMinSlider', 'ppmMaxSlider'];
     targetSliders.forEach(id => {
       const el = document.getElementById(id);
       if (el) {
-        el.addEventListener('mousedown', () => isEditingTargets = true);
-        el.addEventListener('touchstart', () => isEditingTargets = true, {passive: true});
-        el.addEventListener('change', () => isEditingTargets = false);
+        el.addEventListener('mousedown', () => {
+          isEditingTargets = true;
+          clearTimeout(editingTimer);
+        });
+        el.addEventListener('touchstart', () => {
+          isEditingTargets = true;
+          clearTimeout(editingTimer);
+        }, {passive: true});
+        el.addEventListener('mouseup', () => {
+          editingTimer = setTimeout(() => { isEditingTargets = false; }, 3000);
+        });
+        el.addEventListener('touchend', () => {
+          editingTimer = setTimeout(() => { isEditingTargets = false; }, 3000);
+        });
       }
     });
 
@@ -914,6 +926,14 @@
     async function startOtaUpdate() {
         // Not supported yet
     }
+
+    // Expose functions to global scope so onclick HTML attributes work inside ES module
+    window.openOtaModal = openOtaModal;
+    window.closeOtaModal = closeOtaModal;
+    window.updateDualSlider = updateDualSlider;
+    window.saveTarget = saveTarget;
+    window.checkOtaUpdate = checkOtaUpdate;
+    window.startOtaUpdate = startOtaUpdate;
 
 
     
