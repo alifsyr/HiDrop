@@ -111,7 +111,7 @@ void DosingController::update(
                 setRelay(Pins::RELAY_NUTRI_B, false);
                 _state = State::WAITING_RECHECK;
                 _stateStartedMs = now;
-                Serial.println("Nutrient A + B dose complete. Waiting for solution mixing.");
+                Serial.println("[Dosing] Nutrient A + B dose complete. Waiting for solution mixing.");
             }
             return;
 
@@ -120,7 +120,7 @@ void DosingController::update(
                 setRelay(Pins::RELAY_PH_DOWN, false);
                 _state = State::WAITING_RECHECK;
                 _stateStartedMs = now;
-                Serial.println("pH Down dose complete. Waiting for solution mixing.");
+                Serial.println("[Dosing] pH Down dose complete. Waiting for solution mixing.");
             }
             return;
 
@@ -129,7 +129,7 @@ void DosingController::update(
                 setRelay(Pins::RELAY_PH_UP, false);
                 _state = State::WAITING_RECHECK;
                 _stateStartedMs = now;
-                Serial.println("pH Up dose complete. Waiting for solution mixing.");
+                Serial.println("[Dosing] pH Up dose complete. Waiting for solution mixing.");
             }
             return;
 
@@ -325,7 +325,7 @@ void DosingController::startEvent(const SensorData &data, const struct tm *local
         _activeReport.time = formatTime(*localTime);
     }
 
-    Serial.println("Auto dosing event started.");
+    Serial.println("[Dosing] Auto dosing event started.");
 }
 
 void DosingController::finalizeEvent(const SensorData &data, const char *reason) {
@@ -340,7 +340,7 @@ void DosingController::finalizeEvent(const SensorData &data, const char *reason)
     _pendingAction = Action::NONE;
     _cooldownUntilMs = millis() + AppConfig::AUTODOSE_EVENT_COOLDOWN_MS;
 
-    Serial.print("Auto dosing event completed: ");
+    Serial.print("[Dosing] Auto dosing event completed: ");
     Serial.println(reason);
 }
 
@@ -354,6 +354,7 @@ void DosingController::startNutrientDoseState(const char *label) {
     _activeReport.nutrientAMl += deliveredMlForDuration(AppConfig::NUTRI_A_FLOW_ML_PER_SEC, durationMs);
     _activeReport.nutrientBMl += deliveredMlForDuration(AppConfig::NUTRI_B_FLOW_ML_PER_SEC, durationMs);
 
+    Serial.print("[Dosing] ");
     Serial.println(label);
 }
 
@@ -372,6 +373,7 @@ void DosingController::startRelayState(State nextState, uint8_t pin, float added
         _activeReport.phUpMl += addedMl;
     }
 
+    Serial.print("[Dosing] ");
     Serial.println(label);
 }
 
