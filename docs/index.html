@@ -756,32 +756,37 @@
       
       const nowMs = Date.now();
       let isOnline = false;
-      let lastUpdateMs = nowMs;
       
-      if (data.device && data.device.time_valid) {
-          // Use absolute time if ESP32 has valid RTC time
+      // Track the last time the payload changed (timestamp or uptime)
+      if (data.timestamp) {
+          if (window._lastDeviceTimestamp !== data.timestamp) {
+              window._lastDeviceTimestamp = data.timestamp;
+              window._lastReceiveMs = nowMs;
+          }
+      } else if (data.device && data.device.uptime_seconds) {
+          if (window._lastDeviceUptime !== data.device.uptime_seconds) {
+              window._lastDeviceUptime = data.device.uptime_seconds;
+              window._lastReceiveMs = nowMs;
+          }
+      }
+      
+      // If we received an update in the last 65 seconds, it is online
+      const lastReceiveMs = window._lastReceiveMs || nowMs;
+      isOnline = (nowMs - lastReceiveMs) < 65000;
+      
+      // Determine what time to show on the UI
+      let displayTimeMs = lastReceiveMs;
+      if (data.device && data.device.time_valid && isOnline) {
           const espTime = new Date(`${data.device.date.replace(/-/g, '/')} ${data.device.time}`).getTime();
           if (!isNaN(espTime)) {
-              lastUpdateMs = espTime;
-              isOnline = Math.abs(nowMs - espTime) < 65000; // 65 seconds tolerance
+              displayTimeMs = espTime;
           }
       }
-      
-      // Fallback if no valid time or if we want extra safety: use uptime changes
-      if (!isOnline && data.device && data.device.uptime_seconds) {
-          if (!window._lastUptime || window._lastUptime !== data.device.uptime_seconds) {
-              window._lastUptime = data.device.uptime_seconds;
-              window._lastUpdateMs = nowMs;
-          }
-          lastUpdateMs = window._lastUpdateMs || nowMs;
-          isOnline = (nowMs - lastUpdateMs) < 65000;
-      }
-
       document.getElementById("heroStatus").textContent = isOnline
         ? "Device online and serving live telemetry"
         : "Device offline (showing last known state)";
       document.getElementById("wifiDot").classList.toggle("ok", isOnline);
-      document.getElementById("refreshedAt").textContent = new Date(lastUpdateMs || nowMs).toLocaleTimeString("id-ID", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      document.getElementById("refreshedAt").textContent = new Date(displayTimeMs).toLocaleTimeString("id-ID", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
       document.getElementById("ipAddress").textContent = `IP: ${data?.device?.ip_address || "-"}`;
 
@@ -1056,9 +1061,10 @@
     window.checkOtaUpdate = checkOtaUpdate;
     window.startOtaUpdate = startOtaUpdate;
 
+    // Initialize sliders on page load
+    updateDualSlider(null, 'ph');
+    updateDualSlider(null, 'ppm');
 
-    
-  
     // Connect to Firebase and listen to changes
     if(db) {
       const statusRef = ref(db, 'hydroponic/status');
