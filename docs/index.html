@@ -1042,9 +1042,12 @@
             if (pct === 100) {
               progressBar.style.width = '100%';
               progressPct.textContent = '100%';
-              status.textContent = '✓ Update berhasil! Device sedang restart...';
+              status.textContent = '✓ Update berhasil! Device sedang restart... (Auto reload dalam 15d)';
               status.style.color = 'var(--ok)';
               unsubOta();
+              setTimeout(() => {
+                window.location.reload();
+              }, 15000);
             }
           }
         });
