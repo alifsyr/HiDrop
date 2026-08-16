@@ -21,6 +21,11 @@ public:
         const TargetRanges &targetRanges
     );
 
+    // Dev mode: manually trigger a single dose
+    bool triggerManualDose(const String &cmd, const SensorData &data,
+                           const struct tm *localTime, bool timeValid);
+
+    bool isDevMode() const;
     bool isBusy() const;
     DisplayMode getDisplayMode() const;
     const char *getStateLabel() const;
