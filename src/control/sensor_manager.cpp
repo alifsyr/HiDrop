@@ -1,4 +1,5 @@
 #include "control/sensor_manager.h"
+#include "utils/logger.h"
 
 SensorManager::SensorManager(
     TdsSensor &tdsSensor,
