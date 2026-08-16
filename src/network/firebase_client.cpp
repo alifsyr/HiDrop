@@ -37,6 +37,18 @@ void FirebaseClient::setCommandCallback(CommandCallback cb) {
     _commandCallback = cb;
 }
 
+void FirebaseClient::setOtaTriggerCallback(OtaTriggerCallback cb) {
+    _otaTriggerCallback = cb;
+}
+
+void FirebaseClient::reportOtaStatus(const String& status, int progress) {
+    if (!AppConfig::FIREBASE_ENABLED || !Firebase.ready()) return;
+    FirebaseJson json;
+    json.set("ota_status", status);
+    json.set("ota_progress", progress);
+    Firebase.RTDB.updateNode(&_fbdo2, "/hydroponic/status/device", &json);
+}
+
 void FirebaseClient::update(
     const SensorData &sensorData,
     const TargetRanges &targetRanges,
@@ -206,6 +218,29 @@ void FirebaseClient::checkIncomingCommands() {
     if (millis() - lastCheck < 2000) return;
     lastCheck = millis();
 
+    // --- Check OTA trigger ---
+    if (Firebase.RTDB.getBool(&_fbdo2, "/hydroponic/commands/ota/trigger")) {
+        if (_fbdo2.boolData() == true) {
+            // Read OTA details
+            String otaUrl = "";
+            String otaVersion = "";
+            if (Firebase.RTDB.getString(&_fbdo2, "/hydroponic/commands/ota/url")) {
+                otaUrl = _fbdo2.stringData();
+            }
+            if (Firebase.RTDB.getString(&_fbdo2, "/hydroponic/commands/ota/version")) {
+                otaVersion = _fbdo2.stringData();
+            }
+            // Clear the trigger flag immediately to prevent re-trigger after reboot
+            Firebase.RTDB.setBool(&_fbdo2, "/hydroponic/commands/ota/trigger", false);
+            Serial.printf("[Firebase] OTA trigger received! URL: %s, Version: %s\n",
+                          otaUrl.c_str(), otaVersion.c_str());
+            if (_otaTriggerCallback && !otaUrl.isEmpty()) {
+                _otaTriggerCallback(otaUrl, otaVersion);
+            }
+        }
+    }
+
+    // --- Check target update command ---
     if (Firebase.RTDB.getBool(&_fbdo, "/hydroponic/commands/targets/pending_update")) {
         if (_fbdo.boolData() == true) {
             // Read targets

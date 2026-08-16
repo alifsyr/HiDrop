@@ -12,6 +12,7 @@
 class FirebaseClient {
 public:
     typedef std::function<bool(const String&)> CommandCallback;
+    typedef std::function<void(const String& url, const String& version)> OtaTriggerCallback;
 
     FirebaseClient();
 
@@ -31,6 +32,8 @@ public:
     void handleClient();
     void addCompletedReport(const DosingReport &report);
     void setCommandCallback(CommandCallback cb);
+    void setOtaTriggerCallback(OtaTriggerCallback cb);
+    void reportOtaStatus(const String& status, int progress);
 
 private:
     static constexpr size_t kHistorySamplesSize = 48;
@@ -56,7 +59,8 @@ private:
         uint16_t ppm = 0;
     };
 
-    FirebaseData _fbdo;
+    FirebaseData _fbdo;     // used for status/history/targets
+    FirebaseData _fbdo2;    // used for OTA command polling
     FirebaseAuth _auth;
     FirebaseConfig _config;
     bool _firebaseReady;
@@ -69,6 +73,7 @@ private:
     unsigned long _lastFirebaseUpdateMs;
     bool _wasWifiConnected;
     CommandCallback _commandCallback;
+    OtaTriggerCallback _otaTriggerCallback;
 
     void addHistorySample(const SensorData &sensorData);
     void sendStatusToFirebase();

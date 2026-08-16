@@ -64,6 +64,20 @@ void setup() {
   sheetsLogger.begin();
   firebaseClient.setCommandCallback(
       [](const String &cmd) { return targetRangeManager.handleCommand(cmd); });
+  firebaseClient.setOtaTriggerCallback(
+      [](const String &url, const String &version) {
+          Serial.printf("[Main] OTA update triggered! Version: %s\n", version.c_str());
+          firebaseClient.reportOtaStatus("downloading", 0);
+          bool ok = otaUpdater.startUpdateFromUrl(url, [](int pct) {
+              firebaseClient.reportOtaStatus("downloading", pct);
+          });
+          if (!ok) {
+              Serial.println("[Main] OTA update failed!");
+              firebaseClient.reportOtaStatus("failed", 0);
+          }
+          // If ok, ESP32 auto-restarts. reportOtaStatus("success") is not needed
+          // because the new firmware will overwrite the status on next boot.
+      });
   otaUpdater.begin();
   firebaseClient.begin();
 

@@ -476,7 +476,7 @@
 
     <!-- OTA Modal -->
     <div id="otaModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
-      <div class="panel" style="max-width: 400px; width: 90%; position: relative;">
+      <div class="panel" style="max-width: 420px; width: 90%; position: relative;">
         <button onclick="closeOtaModal()" style="position: absolute; right: 16px; top: 16px; background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--muted);">&times;</button>
         <h2>Firmware Update</h2>
         <p class="subhead" style="margin-bottom: 20px;">Check for the latest updates from GitHub.</p>
@@ -489,9 +489,17 @@
           <span class="label">Latest Version:</span>
           <span class="value" style="font-size: 1.2rem; color: var(--accent);" id="otaLatestVer">-</span>
         </div>
+
+        <!-- Progress bar (hidden until OTA starts) -->
+        <div id="otaProgressWrap" style="display: none; margin-bottom: 16px;">
+          <div style="background: var(--accent-soft); border-radius: 999px; height: 10px; overflow: hidden;">
+            <div id="otaProgressBar" style="height: 100%; width: 0%; background: var(--accent); border-radius: 999px; transition: width 0.4s ease;"></div>
+          </div>
+          <div id="otaProgressPct" style="text-align: center; font-size: 0.85rem; margin-top: 6px; color: var(--muted);">0%</div>
+        </div>
         
         <button id="otaCheckBtn" class="btn" style="background: white; color: var(--accent); border: 1px solid var(--accent); margin-bottom: 12px;" onclick="checkOtaUpdate()">Check Update Now</button>
-        <button id="otaStartBtn" class="btn" style="display: none;" onclick="startOtaUpdate()">Install Update & Restart</button>
+        <button id="otaStartBtn" class="btn" style="display: none;" onclick="startOtaUpdate()">Install Update &amp; Restart</button>
         <div id="otaStatusText" style="margin-top: 12px; font-size: 0.9rem; text-align: center; color: var(--muted);"></div>
       </div>
     </div>
@@ -915,16 +923,136 @@
       const status = document.getElementById('otaStatusText');
       btn.disabled = true;
       btn.textContent = 'Checking...';
-      status.textContent = 'OTA update via Firebase is not yet supported.';
-      status.style.color = 'var(--warn)';
-      setTimeout(() => {
+      status.textContent = '';
+      status.style.color = 'var(--muted)';
+
+      try {
+        const res = await fetch('https://api.github.com/repos/alifsyr/HiDrop/releases/latest', {
+          headers: { 'Accept': 'application/vnd.github.v3+json' }
+        });
+        if (!res.ok) throw new Error(`GitHub API error: ${res.status}`);
+        const release = await res.json();
+
+        const latestTag = release.tag_name || '-';
+        document.getElementById('otaLatestVer').textContent = latestTag;
+
+        const currentVer = latestStatus?.device?.firmware_version || '';
+        // Compare e.g. "v1.0.11" vs "1.0.11"
+        const latestClean = latestTag.replace(/^v/, '');
+        const currentClean = currentVer.replace(/^v/, '');
+
+        if (!currentClean) {
+          status.textContent = 'Cannot determine current version.';
+          status.style.color = 'var(--warn)';
+        } else if (latestClean === currentClean) {
+          status.textContent = '✓ Already up to date.';
+          status.style.color = 'var(--ok)';
+          document.getElementById('otaStartBtn').style.display = 'none';
+        } else {
+          status.textContent = `Update available! (${currentClean} → ${latestClean})`;
+          status.style.color = 'var(--warn)';
+          document.getElementById('otaStartBtn').style.display = 'block';
+        }
+      } catch (err) {
+        status.textContent = `Failed to check: ${err.message}`;
+        status.style.color = 'var(--danger)';
+      } finally {
         btn.disabled = false;
         btn.textContent = 'Check Update Now';
-      }, 3000);
+      }
     }
     
     async function startOtaUpdate() {
-        // Not supported yet
+      const btn = document.getElementById('otaStartBtn');
+      const checkBtn = document.getElementById('otaCheckBtn');
+      const status = document.getElementById('otaStatusText');
+      const progressWrap = document.getElementById('otaProgressWrap');
+      const progressBar = document.getElementById('otaProgressBar');
+      const progressPct = document.getElementById('otaProgressPct');
+
+      if (!db) {
+        status.textContent = 'Firebase not connected.';
+        status.style.color = 'var(--danger)';
+        return;
+      }
+
+      btn.disabled = true;
+      checkBtn.disabled = true;
+      btn.textContent = 'Sending command...';
+      status.textContent = 'Fetching firmware URL from GitHub...';
+      status.style.color = 'var(--muted)';
+
+      try {
+        // Step 1: Get download URL from GitHub
+        const res = await fetch('https://api.github.com/repos/alifsyr/HiDrop/releases/latest', {
+          headers: { 'Accept': 'application/vnd.github.v3+json' }
+        });
+        if (!res.ok) throw new Error(`GitHub API error: ${res.status}`);
+        const release = await res.json();
+
+        const latestTag = release.tag_name || '';
+        let firmwareUrl = '';
+        for (const asset of (release.assets || [])) {
+          if (asset.name === 'firmware.bin') {
+            firmwareUrl = asset.browser_download_url;
+            break;
+          }
+        }
+        if (!firmwareUrl) throw new Error('firmware.bin not found in latest release assets.');
+
+        // Step 2: Write OTA command to Firebase
+        await set(ref(db, 'hydroponic/commands/ota'), {
+          trigger: true,
+          url: firmwareUrl,
+          version: latestTag,
+          timestamp: Date.now()
+        });
+
+        btn.textContent = 'Waiting for device...';
+        status.textContent = 'Command sent! Waiting for ESP32 to respond...';
+        status.style.color = 'var(--warn)';
+        progressWrap.style.display = 'block';
+        progressBar.style.width = '0%';
+        progressPct.textContent = '0%';
+
+        // Step 3: Listen to ESP32 progress via Firebase
+        const unsubOta = onValue(ref(db, 'hydroponic/status/device'), (snap) => {
+          const d = snap.val();
+          if (!d) return;
+          const otaStatus = d.ota_status || '';
+          const pct = d.ota_progress || 0;
+
+          if (otaStatus === 'downloading') {
+            progressBar.style.width = pct + '%';
+            progressPct.textContent = pct + '%';
+            status.textContent = `Downloading firmware... ${pct}%`;
+            status.style.color = 'var(--warn)';
+          } else if (otaStatus === 'failed') {
+            status.textContent = '✗ Update failed. Check Serial Monitor.';
+            status.style.color = 'var(--danger)';
+            btn.disabled = false;
+            checkBtn.disabled = false;
+            btn.textContent = 'Install Update & Restart';
+            unsubOta();
+          } else if (pct === 100 || otaStatus === '') {
+            // Device rebooted and cleared status — assume success
+            if (pct === 100) {
+              progressBar.style.width = '100%';
+              progressPct.textContent = '100%';
+              status.textContent = '✓ Update berhasil! Device sedang restart...';
+              status.style.color = 'var(--ok)';
+              unsubOta();
+            }
+          }
+        });
+
+      } catch (err) {
+        status.textContent = `Error: ${err.message}`;
+        status.style.color = 'var(--danger)';
+        btn.disabled = false;
+        checkBtn.disabled = false;
+        btn.textContent = 'Install Update & Restart';
+      }
     }
 
     // Expose functions to global scope so onclick HTML attributes work inside ES module
