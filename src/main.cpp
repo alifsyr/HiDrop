@@ -99,11 +99,7 @@ void loop() {
   while (Serial.available() > 0) {
     const char incoming = static_cast<char>(Serial.read());
 
-    if (incoming == '\r') {
-      continue;
-    }
-
-    if (incoming == '\n') {
+    if (incoming == '\r' || incoming == '\n') {
       if (serialCommandLength == 0) {
         continue;
       }
