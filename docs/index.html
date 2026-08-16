@@ -755,6 +755,10 @@
       latestStatus = data;
       
       const nowMs = Date.now();
+      
+      if (data.device && data.device.firmware_version) {
+          backgroundOtaCheck(data.device.firmware_version);
+      }
       let isOnline = false;
       
       // Track the last time the payload changed (timestamp or uptime)
