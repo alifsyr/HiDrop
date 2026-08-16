@@ -52,6 +52,12 @@ void DosingController::update(
         return;
     }
 
+#if DEV_MODE
+    // In development mode, automatic dosing is disabled.
+    // Use Serial commands to trigger manually.
+    return;
+#endif
+
     switch (_state) {
         case State::IDLE: {
             const bool startupReady = isDeadlineReached(now, _startupReadyMs);
@@ -197,6 +203,91 @@ void DosingController::update(
 
 bool DosingController::isBusy() const {
     return _state != State::IDLE;
+}
+
+bool DosingController::isDevMode() const {
+#if DEV_MODE
+    return true;
+#else
+    return false;
+#endif
+}
+
+// ---------------------------------------------------------------------------
+// Manual dose trigger (dev mode only)
+// Commands: DEV NUTRI | DEV PH UP | DEV PH DOWN
+// ---------------------------------------------------------------------------
+bool DosingController::triggerManualDose(const String &cmd, const SensorData &data,
+                                          const struct tm *localTime, bool timeValid) {
+    String upper = cmd;
+    upper.toUpperCase();
+    upper.trim();
+
+    if (!upper.startsWith("DEV ")) return false;
+
+    if (_state != State::IDLE) {
+        Serial.println("[DevMode] Cannot trigger: dosing already in progress.");
+        return true;
+    }
+
+    if (upper == "DEV NUTRI") {
+        Serial.println("[DevMode] Manual trigger: Dosing Nutrient A + B");
+        startEvent(data, localTime, timeValid);
+        _pendingAction = Action::DOSE_NUTRIENTS;
+        startNutrientDoseState("[DevMode] Dosing Nutrient A + B together");
+        return true;
+    }
+
+    if (upper == "DEV PH UP") {
+        Serial.println("[DevMode] Manual trigger: Dosing pH Up");
+        startEvent(data, localTime, timeValid);
+        _pendingAction = Action::DOSE_PH_UP;
+        startRelayState(
+            State::DOSING_PH_UP,
+            Pins::RELAY_PH_UP,
+            AppConfig::PH_UP_DOSE_STEP_ML,
+            "[DevMode] Dosing pH Up"
+        );
+        return true;
+    }
+
+    if (upper == "DEV PH DOWN") {
+        Serial.println("[DevMode] Manual trigger: Dosing pH Down");
+        startEvent(data, localTime, timeValid);
+        _pendingAction = Action::DOSE_PH_DOWN;
+        startRelayState(
+            State::DOSING_PH_DOWN,
+            Pins::RELAY_PH_DOWN,
+            AppConfig::PH_DOWN_DOSE_STEP_ML,
+            "[DevMode] Dosing pH Down"
+        );
+        return true;
+    }
+
+    if (upper == "DEV STOP") {
+        Serial.println("[DevMode] Manual stop: all relays off.");
+        stopAllRelays();
+        _state = State::IDLE;
+        _eventActive = false;
+        return true;
+    }
+
+    if (upper == "DEV STATUS") {
+        Serial.println("[DevMode] === DEV MODE STATUS ===");
+        Serial.printf("  Auto dosing  : DISABLED (DEV_MODE=1)\n");
+        Serial.printf("  State        : %s\n", getStateLabel());
+        Serial.printf("  Commands:\n");
+        Serial.printf("    DEV NUTRI    - Dose Nutrient A + B\n");
+        Serial.printf("    DEV PH UP    - Dose pH Up\n");
+        Serial.printf("    DEV PH DOWN  - Dose pH Down\n");
+        Serial.printf("    DEV STOP     - Stop all relays\n");
+        Serial.printf("    DEV STATUS   - Show this info\n");
+        Serial.println("[DevMode] ================================");
+        return true;
+    }
+
+    Serial.println("[DevMode] Unknown command. Type 'DEV STATUS' for help.");
+    return true;
 }
 
 DisplayMode DosingController::getDisplayMode() const {

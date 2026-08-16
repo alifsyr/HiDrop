@@ -82,6 +82,14 @@ void setup() {
   firebaseClient.begin();
 
   Serial.println();
+
+#if DEV_MODE
+  Serial.println("╔══════════════════════════════════════╗");
+  Serial.println("║        *** DEVELOPMENT MODE ***       ║");
+  Serial.println("║  Auto-dosing DISABLED                 ║");
+  Serial.println("║  Type 'DEV STATUS' for commands       ║");
+  Serial.println("╚══════════════════════════════════════╝");
+#endif
 }
 
 void loop() {
@@ -104,8 +112,17 @@ void loop() {
       String command(serialCommandBuffer);
       command.trim();
 
-      if (command.length() > 0 && !targetRangeManager.handleCommand(command)) {
-        sensorManager.handleCalibrationCommand(command);
+      if (command.length() > 0) {
+        SensorData currentCmdData = sensorManager.getSensorData();
+        struct tm localTimeCmdInfo = {};
+        bool timeValidCmd = wifiClock.getLocalTime(localTimeCmdInfo);
+
+        if (!dosingController.triggerManualDose(
+                command, currentCmdData,
+                timeValidCmd ? &localTimeCmdInfo : nullptr, timeValidCmd) &&
+            !targetRangeManager.handleCommand(command)) {
+          sensorManager.handleCalibrationCommand(command);
+        }
       }
 
       serialCommandLength = 0;
@@ -175,7 +192,8 @@ void loop() {
     unsigned long mins = (uptimeSec % 3600) / 60;
     unsigned long secs = uptimeSec % 60;
 
-    Serial.printf("[Status] Uptime: %02lu:%02lu:%02lu | Temp: %.1fC | TDS: %.0fppm | pH: %.2f | State: %s\n",
+    Serial.printf("[Status%s] Uptime: %02lu:%02lu:%02lu | Temp: %.1fC | TDS: %.0fppm | pH: %.2f | State: %s\n",
+        dosingController.isDevMode() ? "|DEV" : "",
         hours, mins, secs,
         currentData.temperatureC, currentData.tds, currentData.phValue, 
         dosingController.getStateLabel());
