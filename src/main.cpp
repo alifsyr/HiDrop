@@ -167,15 +167,18 @@ void loop() {
   firebaseClient.handleClient();
 
   if (!sensorManager.isCalibrationMode() &&
-      (now - lastPrintMs >= AppConfig::SENSOR_PRINT_INTERVAL_MS)) {
+      (now - lastPrintMs >= 10000)) { // 10 seconds heartbeat
     lastPrintMs = now;
 
-    Serial.print("Temp: ");
-    Serial.print(currentData.temperatureC, 2);
-    Serial.print(" C | TDS: ");
-    Serial.print(currentData.tds, 0);
-    Serial.print(" ppm | pH: ");
-    Serial.println(currentData.phValue, 2);
+    unsigned long uptimeSec = now / 1000;
+    unsigned long hours = uptimeSec / 3600;
+    unsigned long mins = (uptimeSec % 3600) / 60;
+    unsigned long secs = uptimeSec % 60;
+
+    Serial.printf("[Status] Uptime: %02lu:%02lu:%02lu | Temp: %.1fC | TDS: %.0fppm | pH: %.2f | State: %s\n",
+        hours, mins, secs,
+        currentData.temperatureC, currentData.tds, currentData.phValue, 
+        dosingController.getStateLabel());
   }
 
   if (now - lastLcdMs >= AppConfig::LCD_REFRESH_INTERVAL_MS) {
