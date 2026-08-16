@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -240,12 +239,12 @@
 
     /* Slider Styles */
     .slider-group {
-      margin-bottom: 24px;
+      margin-bottom: 20px;
     }
     .slider-header {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 12px;
+      margin-bottom: 8px;
     }
     .slider-label {
       font-weight: 600;
@@ -256,55 +255,27 @@
       color: var(--accent);
       font-weight: 700;
     }
-    .range-slider {
-      position: relative;
-      width: 100%;
-      height: 8px;
-      margin-top: 10px;
-      margin-bottom: 20px;
-    }
-    .range-slider-track {
-      position: absolute;
-      width: 100%;
-      height: 8px;
-      background: rgba(13, 141, 119, 0.2);
-      border-radius: 4px;
-      top: 0;
-      left: 0;
-    }
-    .range-slider-progress {
-      position: absolute;
-      height: 8px;
-      background: var(--accent);
-      border-radius: 4px;
-      top: 0;
-    }
     input[type=range] {
       -webkit-appearance: none;
-      position: absolute;
       width: 100%;
       background: transparent;
-      pointer-events: none;
-      top: -5px;
-      left: 0;
-      margin: 0;
     }
     input[type=range]::-webkit-slider-thumb {
       -webkit-appearance: none;
-      pointer-events: auto;
-      height: 18px;
-      width: 18px;
+      height: 24px;
+      width: 24px;
       border-radius: 50%;
       background: var(--accent);
-      border: 2px solid var(--surface);
       cursor: pointer;
-      box-shadow: 0 2px 4px rgba(13, 141, 119, 0.4);
-      z-index: 2;
-      position: relative;
+      margin-top: -8px;
+      box-shadow: 0 2px 6px rgba(13, 141, 119, 0.4);
     }
-    input[type=range]:active::-webkit-slider-thumb {
-      transform: scale(1.15);
-      z-index: 3;
+    input[type=range]::-webkit-slider-runnable-track {
+      width: 100%;
+      height: 8px;
+      cursor: pointer;
+      background: rgba(13, 141, 119, 0.2);
+      border-radius: 4px;
     }
     .btn {
       display: inline-block;
@@ -343,161 +314,8 @@
       }
     }
   </style>
-</head>
-<body>
-  <main class="shell">
-    <section class="hero">
-      <div class="hero-head">
-        <div>
-          <div class="eyebrow">
-            <span id="wifiDot" class="dot"></span>
-            <span id="heroStatus">Connecting to device...</span>
-          </div>
-          <h1>Hydroponic Monitor (Cloud)</h1>
-          <p class="subhead">
-            Dashboard live untuk pH, PPM, suhu air, status auto dosing, dan histori singkat aktivitas terakhir dari ESP32.
-          </p>
-        </div>
-        <div style="display: flex; gap: 14px; align-items: start;">
-          <button id="otaBellBtn" onclick="openOtaModal()" style="position: relative; background: rgba(255,255,255,0.74); border: 1px solid rgba(19, 52, 43, 0.07); padding: 18px; border-radius: 20px; cursor: pointer; transition: background 0.2s; backdrop-filter: blur(8px);">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-              <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-            </svg>
-            <span id="otaBadge" style="display: none; position: absolute; top: 12px; right: 12px; width: 10px; height: 10px; background: #b42318; border-radius: 50%; box-shadow: 0 0 0 3px rgba(255,255,255,0.8);"></span>
-          </button>
-          <div class="stat">
-            <p class="label">Last Refresh</p>
-            <p id="refreshedAt" class="value" style="font-size:1.4rem">Waiting...</p>
-            <div class="meta mono" id="ipAddress">IP: -</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="hero-stats">
-        <article class="stat">
-          <p class="label">pH Air</p>
-          <p id="phValue" class="value">-</p>
-          <div class="meta" id="phMeta">Target: -</div>
-        </article>
-        <article class="stat">
-          <p class="label">PPM</p>
-          <p id="ppmValue" class="value">-</p>
-          <div class="meta" id="ppmMeta">Target: -</div>
-        </article>
-        <article class="stat">
-          <p class="label">Temperature</p>
-          <p id="tempValue" class="value">-</p>
-          <div class="meta" id="tempMeta">Water temperature</div>
-        </article>
-        <article class="stat">
-          <p class="label">Auto Dosing</p>
-          <p id="dosingState" class="value" style="font-size:1.25rem; line-height:1.2">-</p>
-          <div class="meta" id="dosingMeta">Mode: -</div>
-        </article>
-      </div>
-    </section>
-
-    <section class="chart-grid">
-      <article class="panel chart-card">
-        <div class="section-head">
-          <h2>pH Trend</h2>
-          <span class="meta">Recent sensor history</span>
-        </div>
-        <div class="chart-frame">
-          <svg id="phChart" class="chart-svg" viewBox="0 0 640 240" role="img" aria-label="pH history chart"></svg>
-        </div>
-        <div class="chart-meta">
-          <span id="phChartRange">Waiting for data...</span>
-          <span id="phChartLatest" class="chart-stat">-</span>
-        </div>
-      </article>
-
-      <article class="panel chart-card">
-        <div class="section-head">
-          <h2>PPM Trend</h2>
-          <span class="meta">Recent sensor history</span>
-        </div>
-        <div class="chart-frame">
-          <svg id="ppmChart" class="chart-svg" viewBox="0 0 640 240" role="img" aria-label="PPM history chart"></svg>
-        </div>
-        <div class="chart-meta">
-          <span id="ppmChartRange">Waiting for data...</span>
-          <span id="ppmChartLatest" class="chart-stat">-</span>
-        </div>
-      </article>
-    </section>
-
-    <section class="panel" style="margin-top:18px">
-      <div class="section-head">
-        <h2>Target Settings</h2>
-        <span class="meta">Adjust dosing targets</span>
-      </div>
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px;">
-        <div>
-          <div class="slider-group">
-            <div class="slider-header">
-              <span class="slider-label">pH Target Range</span>
-              <span class="slider-value"><span id="phMinVal">-</span> - <span id="phMaxVal">-</span></span>
-            </div>
-            <div class="range-slider">
-              <div class="range-slider-track"></div>
-              <div class="range-slider-progress" id="phProgress"></div>
-              <input type="range" id="phMinSlider" min="4.0" max="9.0" step="0.1" value="5.8" oninput="updateDualSlider(this, 'ph')" onchange="saveTarget('ph')">
-              <input type="range" id="phMaxSlider" min="4.0" max="9.0" step="0.1" value="6.2" oninput="updateDualSlider(this, 'ph')" onchange="saveTarget('ph')">
-            </div>
-            <div id="phSaveStatus" style="margin-top: 8px; font-size: 0.85rem; color: var(--ok); display: none;">Saved!</div>
-          </div>
-        </div>
-        <div>
-          <div class="slider-group">
-            <div class="slider-header">
-              <span class="slider-label">PPM Target Range</span>
-              <span class="slider-value"><span id="ppmMinVal">-</span> - <span id="ppmMaxVal">-</span></span>
-            </div>
-            <div class="range-slider">
-              <div class="range-slider-track"></div>
-              <div class="range-slider-progress" id="ppmProgress"></div>
-              <input type="range" id="ppmMinSlider" min="500" max="4000" step="50" value="600" oninput="updateDualSlider(this, 'ppm')" onchange="saveTarget('ppm')">
-              <input type="range" id="ppmMaxSlider" min="500" max="4000" step="50" value="800" oninput="updateDualSlider(this, 'ppm')" onchange="saveTarget('ppm')">
-            </div>
-            <div id="ppmSaveStatus" style="margin-top: 8px; font-size: 0.85rem; color: var(--ok); display: none;">Saved!</div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="panel" style="margin-top:18px">
-      <h2>Recent Dosing Reports</h2>
-      <div id="reportContainer">
-        <p class="empty">Belum ada event dosing yang selesai.</p>
-      </div>
-    </section>
-
-    <!-- OTA Modal -->
-    <div id="otaModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
-      <div class="panel" style="max-width: 400px; width: 90%; position: relative;">
-        <button onclick="closeOtaModal()" style="position: absolute; right: 16px; top: 16px; background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--muted);">&times;</button>
-        <h2>Firmware Update</h2>
-        <p class="subhead" style="margin-bottom: 20px;">Check for the latest updates from GitHub.</p>
-        
-        <div style="margin-bottom: 12px;">
-          <span class="label">Current Version:</span>
-          <span class="value" style="font-size: 1.2rem;" id="otaCurrentVer">-</span>
-        </div>
-        <div style="margin-bottom: 24px;">
-          <span class="label">Latest Version:</span>
-          <span class="value" style="font-size: 1.2rem; color: var(--accent);" id="otaLatestVer">-</span>
-        </div>
-        
-        <button id="otaCheckBtn" class="btn" style="background: white; color: var(--accent); border: 1px solid var(--accent); margin-bottom: 12px;" onclick="checkOtaUpdate()">Check Update Now</button>
-        <button id="otaStartBtn" class="btn" style="display: none;" onclick="startOtaUpdate()">Install Update & Restart</button>
-        <div id="otaStatusText" style="margin-top: 12px; font-size: 0.9rem; text-align: center; color: var(--muted);"></div>
-      </div>
-    </div>
-  </main>
-
   
+  <!-- Firebase JS SDK -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getDatabase, ref, onValue, set, get, child } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
@@ -523,6 +341,45 @@
 
     let latestStatus = null;
     let latestHistory = null;
+    
+    function updateDualSlider(triggerEl, prefix) {
+      const minSlider = document.getElementById(prefix + 'MinSlider');
+      const maxSlider = document.getElementById(prefix + 'MaxSlider');
+      const minVal = document.getElementById(prefix + 'MinVal');
+      const maxVal = document.getElementById(prefix + 'MaxVal');
+      const progress = document.getElementById(prefix + 'Progress');
+
+      if(!minSlider || !maxSlider) return;
+
+      let min = parseFloat(minSlider.value);
+      let max = parseFloat(maxSlider.value);
+      
+      const minGap = prefix === 'ph' ? 0.2 : 150;
+
+      if (min > max - minGap) {
+        if (triggerEl === minSlider) {
+          minSlider.value = (max - minGap).toString();
+          min = max - minGap;
+        } else {
+          maxSlider.value = (min + minGap).toString();
+          max = min + minGap;
+        }
+      }
+
+      minVal.textContent = prefix === 'ph' ? min.toFixed(2) : min.toString();
+      maxVal.textContent = prefix === 'ph' ? max.toFixed(2) : max.toString();
+
+      const total = parseFloat(minSlider.max) - parseFloat(minSlider.min);
+      const leftPercent = ((min - parseFloat(minSlider.min)) / total) * 100;
+      const widthPercent = ((max - min) / total) * 100;
+
+      if(progress) {
+        progress.style.left = leftPercent + '%';
+        progress.style.width = widthPercent + '%';
+      }
+    }
+
+    let isEditingTargets = false;
 
     function formatNumber(value, digits) {
       if (typeof value !== "number" || Number.isNaN(value)) return "-";
@@ -555,21 +412,7 @@
     }
 
     function renderLineChart(options) {
-      const {
-        svgId,
-        rangeId,
-        latestId,
-        values,
-        digits,
-        unit,
-        color,
-        targetMin,
-        targetMax,
-        hardMin,
-        hardMax,
-        sampleIntervalMs,
-        lastLabel
-      } = options;
+      const { svgId, rangeId, latestId, values, digits, unit, color, targetMin, targetMax, hardMin, hardMax, sampleIntervalMs, lastLabel } = options;
 
       const svg = document.getElementById(svgId);
       const rangeLabel = document.getElementById(rangeId);
@@ -666,43 +509,8 @@
       latestLabel.textContent = `${formatNumber(lastValue, digits)} ${unit}`;
     }
 
-    function renderReports(reports) {
-      const container = document.getElementById("reportContainer");
-      if (!Array.isArray(reports) || reports.length === 0) {
-        container.innerHTML = '<p class="empty">Belum ada event dosing yang selesai.</p>';
-        return;
-      }
-
-      const rows = reports.map((report) => `
-        <tr>
-          <td class="mono">${report.date} ${report.time}</td>
-          <td>${formatNumber(report.ppm_start, 0)} -> ${formatNumber(report.ppm_end, 0)}</td>
-          <td>${formatNumber(report.ph_start, 2)} -> ${formatNumber(report.ph_end, 2)}</td>
-          <td>${formatNumber(report.na_ml, 2)} / ${formatNumber(report.nb_ml, 2)}</td>
-          <td>${formatNumber(report.ph_down_ml, 2)} / ${formatNumber(report.ph_up_ml, 2)}</td>
-          <td>${report.manual_dilution_required ? "Manual dilution" : "Completed"}</td>
-        </tr>
-      `).join("");
-
-      container.innerHTML = `
-        <table>
-          <thead>
-            <tr>
-              <th>Timestamp</th>
-              <th>PPM</th>
-              <th>pH</th>
-              <th>Nutrient A/B (ml)</th>
-              <th>pH Down/Up (ml)</th>
-              <th>Result</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-      `;
-    }
-
     function renderHistory() {
-      const sampleIntervalMs = Number(latestHistory?.sample_interval_ms || 0);
+      const sampleIntervalMs = Number(latestHistory?.sample_interval_ms || 15000);
       const lastLabel = latestStatus?.device?.time_valid ? (latestStatus?.device?.time || "Now") : "Now";
 
       renderLineChart({
@@ -737,23 +545,39 @@
       });
     }
 
-    function applyReports(reports) {
-      renderReports(Array.isArray(reports) ? reports : []);
-    }
-
     function applyStatus(data) {
+      if(!data) return;
       latestStatus = data;
       
+      // Calculate age of data to determine if online
       const nowMs = Date.now();
-      const lastUpdateMs = data.timestamp || 0;
-      const isOnline = (nowMs - lastUpdateMs) < 60000;
+      let isOnline = false;
+      let lastUpdateMs = nowMs;
+      
+      if (data.device && data.device.time_valid) {
+          // Use absolute time if ESP32 has valid RTC time
+          const espTime = new Date(`${data.device.date.replace(/-/g, '/')} ${data.device.time}`).getTime();
+          if (!isNaN(espTime)) {
+              lastUpdateMs = espTime;
+              isOnline = Math.abs(nowMs - espTime) < 65000; // 65 seconds tolerance
+          }
+      }
+      
+      // Fallback if no valid time or if we want extra safety: use uptime changes
+      if (!isOnline && data.device && data.device.uptime_seconds) {
+          if (!window._lastUptime || window._lastUptime !== data.device.uptime_seconds) {
+              window._lastUptime = data.device.uptime_seconds;
+              window._lastUpdateMs = nowMs;
+          }
+          lastUpdateMs = window._lastUpdateMs || nowMs;
+          isOnline = (nowMs - lastUpdateMs) < 65000;
+      }
+      
       document.getElementById("heroStatus").textContent = isOnline
         ? "Device online and serving live telemetry"
         : "Device offline (showing last known state)";
       document.getElementById("wifiDot").classList.toggle("ok", isOnline);
       document.getElementById("refreshedAt").textContent = new Date(lastUpdateMs || nowMs).toLocaleTimeString();
-
-      document.getElementById("ipAddress").textContent = `IP: ${data?.device?.ip_address || "-"}`;
 
       document.getElementById("phValue").innerHTML = `${formatNumber(data?.sensor?.ph, 2)}<small>pH</small>`;
       document.getElementById("ppmValue").innerHTML = `${formatNumber(data?.sensor?.ppm, 0)}<small>ppm</small>`;
@@ -764,62 +588,40 @@
       document.getElementById("ppmMeta").textContent = `Target: ${formatNumber(data?.targets?.ppm_min, 0)} - ${formatNumber(data?.targets?.ppm_max, 0)}`;
       document.getElementById("tempMeta").textContent = `Voltage pH probe: ${formatNumber(data?.sensor?.ph_voltage, 3)} V`;
       document.getElementById("dosingMeta").textContent = `Mode: ${data?.dosing?.display_mode || "-"} | Busy: ${data?.dosing?.busy ? "YES" : "NO"}`;
-      document.getElementById("otaBadge").style.display = data?.device?.ota_available ? 'block' : 'none';
       
       if (!isEditingTargets && data?.targets) {
         document.getElementById('phMinSlider').value = data.targets.ph_min;
+        document.getElementById('phMinVal').textContent = formatNumber(data.targets.ph_min, 2);
         document.getElementById('phMaxSlider').value = data.targets.ph_max;
+        document.getElementById('phMaxVal').textContent = formatNumber(data.targets.ph_max, 2);
         document.getElementById('ppmMinSlider').value = data.targets.ppm_min;
+        document.getElementById('ppmMinVal').textContent = formatNumber(data.targets.ppm_min, 0);
         document.getElementById('ppmMaxSlider').value = data.targets.ppm_max;
-        updateDualSlider(null, 'ph');
-        updateDualSlider(null, 'ppm');
+        document.getElementById('ppmMaxVal').textContent = formatNumber(data.targets.ppm_max, 0);
       }
       
       renderHistory();
     }
 
-    function updateDualSlider(triggerEl, prefix) {
-      const minSlider = document.getElementById(prefix + 'MinSlider');
-      const maxSlider = document.getElementById(prefix + 'MaxSlider');
-      const minVal = document.getElementById(prefix + 'MinVal');
-      const maxVal = document.getElementById(prefix + 'MaxVal');
-      const progress = document.getElementById(prefix + 'Progress');
-
-      let min = parseFloat(minSlider.value);
-      let max = parseFloat(maxSlider.value);
-      
-      // Use larger gap for PPM
-      const minGap = prefix === 'ph' ? 0.2 : 150;
-
-      if (min > max - minGap) {
-        if (triggerEl === minSlider) {
-          minSlider.value = (max - minGap).toString();
-          min = max - minGap;
-        } else {
-          maxSlider.value = (min + minGap).toString();
-          max = min + minGap;
-        }
-      }
-
-      minVal.textContent = prefix === 'ph' ? min.toFixed(2) : min.toString();
-      maxVal.textContent = prefix === 'ph' ? max.toFixed(2) : max.toString();
-
-      const total = minSlider.max - minSlider.min;
-      const leftPercent = ((min - minSlider.min) / total) * 100;
-      const widthPercent = ((max - min) / total) * 100;
-
-      progress.style.left = leftPercent + '%';
-      progress.style.width = widthPercent + '%';
-    }
-
     function applyHistory(data) {
+      if(!data) return;
       latestHistory = data;
       renderHistory();
     }
 
-    
+    // Connect to Firebase and listen to changes
+    if(db) {
+      const statusRef = ref(db, 'hydroponic/status');
+      onValue(statusRef, (snapshot) => {
+        applyStatus(snapshot.val());
+      });
 
-    let isEditingTargets = false;
+      const historyRef = ref(db, 'hydroponic/history');
+      onValue(historyRef, (snapshot) => {
+        applyHistory(snapshot.val());
+      });
+    }
+
     const targetSliders = ['phMinSlider', 'phMaxSlider', 'ppmMinSlider', 'ppmMaxSlider'];
     targetSliders.forEach(id => {
       const el = document.getElementById(id);
@@ -830,10 +632,16 @@
       }
     });
 
-    
-    async function saveTarget(prefix) {
-      if(!db) return;
-      const status = document.getElementById(prefix + 'SaveStatus');
+    window.saveTargets = async function() {
+      if(!db) {
+        alert("Firebase is not configured!");
+        return;
+      }
+      
+      const btn = document.getElementById('saveTargetsBtn');
+      const statusText = document.getElementById('saveTargetsStatus');
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
       
       const targets = {
         ph_min: Number(document.getElementById('phMinSlider').value),
@@ -846,81 +654,147 @@
 
       try {
         await set(ref(db, 'hydroponic/commands/targets'), targets);
-        status.textContent = 'Saved to Cloud!';
-        status.style.color = 'var(--ok)';
-        status.style.display = 'block';
-        setTimeout(() => { status.style.display = 'none'; }, 2000);
-      } catch (error) {
-        status.textContent = 'Error saving';
-        status.style.color = 'var(--danger)';
-        status.style.display = 'block';
-        setTimeout(() => { status.style.display = 'none'; }, 2000);
-      }
-    }
-
-
-    function openOtaModal() {
-      document.getElementById('otaModal').style.display = 'flex';
-      document.getElementById('otaCurrentVer').textContent = latestStatus?.device?.firmware_version || '-';
-      document.getElementById('otaLatestVer').textContent = latestStatus?.device?.ota_latest_version || '-';
-      document.getElementById('otaStatusText').textContent = '';
-      
-      const hasUpdate = latestStatus?.device?.ota_available;
-      document.getElementById('otaStartBtn').style.display = hasUpdate ? 'block' : 'none';
-    }
-
-    function closeOtaModal() {
-      document.getElementById('otaModal').style.display = 'none';
-    }
-
-    
-    async function checkOtaUpdate() {
-      const btn = document.getElementById('otaCheckBtn');
-      const status = document.getElementById('otaStatusText');
-      btn.disabled = true;
-      btn.textContent = 'Checking...';
-      status.textContent = 'OTA update via Firebase is not yet supported.';
-      status.style.color = 'var(--warn)';
-      setTimeout(() => {
+        statusText.textContent = 'Saved to Cloud successfully!';
+        statusText.style.color = 'var(--ok)';
+        statusText.style.display = 'block';
+        setTimeout(() => statusText.style.display = 'none', 3000);
+      } catch (err) {
+        statusText.textContent = err.message;
+        statusText.style.color = 'var(--danger)';
+        statusText.style.display = 'block';
+      } finally {
         btn.disabled = false;
-        btn.textContent = 'Check Update Now';
-      }, 3000);
-    }
+        btn.textContent = 'Save Targets';
+        isEditingTargets = false;
+      }
+    };
     
-    async function startOtaUpdate() {
-        // Not supported yet
-    }
-
-
-    
-  
-    // Connect to Firebase and listen to changes
-    if(db) {
-      const statusRef = ref(db, 'hydroponic/status');
-      onValue(statusRef, (snapshot) => {
-        if(snapshot.exists()) applyStatus(snapshot.val());
-      });
-
-      const historyRef = ref(db, 'hydroponic/history');
-      onValue(historyRef, (snapshot) => {
-        if(snapshot.exists()) applyHistory(snapshot.val());
-      });
-      
-      const reportsRef = ref(db, 'hydroponic/reports');
-      onValue(reportsRef, (snapshot) => {
-        if(snapshot.exists()) {
-            const reportsObj = snapshot.val();
-            // Convert object to array and sort by latest
-            const reportsArr = Object.values(reportsObj).reverse().slice(0, 5);
-            applyReports(reportsArr);
-        }
-      });
-    }
-    
+    // Check connection state
     setInterval(() => {
         if(latestStatus) applyStatus(latestStatus);
     }, 5000);
 
   </script>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div class="hero-head">
+        <div>
+          <div class="eyebrow">
+            <span id="wifiDot" class="dot"></span>
+            <span id="heroStatus">Connecting to Cloud...</span>
+          </div>
+          <h1>Hydroponic Monitor</h1>
+          <p class="subhead">
+            Global monitoring dashboard via Firebase Realtime Database.
+          </p>
+        </div>
+        <div style="display: flex; gap: 14px; align-items: start;">
+          <div class="stat">
+            <p class="label">Last Update</p>
+            <p id="refreshedAt" class="value" style="font-size:1.4rem">Waiting...</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="hero-stats">
+        <article class="stat">
+          <p class="label">pH Air</p>
+          <p id="phValue" class="value">-</p>
+          <div class="meta" id="phMeta">Target: -</div>
+        </article>
+        <article class="stat">
+          <p class="label">PPM</p>
+          <p id="ppmValue" class="value">-</p>
+          <div class="meta" id="ppmMeta">Target: -</div>
+        </article>
+        <article class="stat">
+          <p class="label">Temperature</p>
+          <p id="tempValue" class="value">-</p>
+          <div class="meta" id="tempMeta">Water temperature</div>
+        </article>
+        <article class="stat">
+          <p class="label">Auto Dosing</p>
+          <p id="dosingState" class="value" style="font-size:1.25rem; line-height:1.2">-</p>
+          <div class="meta" id="dosingMeta">Mode: -</div>
+        </article>
+      </div>
+    </section>
+
+    <section class="chart-grid">
+      <article class="panel chart-card">
+        <div class="section-head">
+          <h2>pH Trend</h2>
+          <span class="meta">Recent sensor history</span>
+        </div>
+        <div class="chart-frame">
+          <svg id="phChart" class="chart-svg" viewBox="0 0 640 240" role="img" aria-label="pH history chart"></svg>
+        </div>
+        <div class="chart-meta">
+          <span id="phChartRange">Waiting for data...</span>
+          <span id="phChartLatest" class="chart-stat">-</span>
+        </div>
+      </article>
+
+      <article class="panel chart-card">
+        <div class="section-head">
+          <h2>PPM Trend</h2>
+          <span class="meta">Recent sensor history</span>
+        </div>
+        <div class="chart-frame">
+          <svg id="ppmChart" class="chart-svg" viewBox="0 0 640 240" role="img" aria-label="PPM history chart"></svg>
+        </div>
+        <div class="chart-meta">
+          <span id="ppmChartRange">Waiting for data...</span>
+          <span id="ppmChartLatest" class="chart-stat">-</span>
+        </div>
+      </article>
+    </section>
+
+    <section class="panel" style="margin-top:18px">
+      <div class="section-head">
+        <h2>Target Settings</h2>
+        <span class="meta">Adjust dosing targets remotely</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px;">
+        <div>
+          <div class="slider-group">
+            <div class="slider-header">
+              <span class="slider-label">pH Minimum</span>
+              <span class="slider-value" id="phMinVal">-</span>
+            </div>
+            <input type="range" id="phMinSlider" min="0" max="14" step="0.1" value="5.8" oninput="document.getElementById('phMinVal').textContent = Number(this.value).toFixed(2)">
+          </div>
+          <div class="slider-group">
+            <div class="slider-header">
+              <span class="slider-label">pH Maximum</span>
+              <span class="slider-value" id="phMaxVal">-</span>
+            </div>
+            <input type="range" id="phMaxSlider" min="0" max="14" step="0.1" value="6.2" oninput="document.getElementById('phMaxVal').textContent = Number(this.value).toFixed(2)">
+          </div>
+        </div>
+        <div>
+          <div class="slider-group">
+            <div class="slider-header">
+              <span class="slider-label">PPM Minimum</span>
+              <span class="slider-value" id="ppmMinVal">-</span>
+            </div>
+            <input type="range" id="ppmMinSlider" min="0" max="2000" step="10" value="600" oninput="document.getElementById('ppmMinVal').textContent = this.value">
+          </div>
+          <div class="slider-group">
+            <div class="slider-header">
+              <span class="slider-label">PPM Maximum</span>
+              <span class="slider-value" id="ppmMaxVal">-</span>
+            </div>
+            <input type="range" id="ppmMaxSlider" min="0" max="2000" step="10" value="800" oninput="document.getElementById('ppmMaxVal').textContent = this.value">
+          </div>
+        </div>
+      </div>
+      <button id="saveTargetsBtn" class="btn" style="margin-top: 16px;" onclick="saveTargets()">Save Targets to Cloud</button>
+      <div id="saveTargetsStatus" style="margin-top: 8px; font-size: 0.9rem; text-align: center; color: var(--ok); display: none;">Saved successfully!</div>
+    </section>
+
+  </main>
 </body>
 </html>
