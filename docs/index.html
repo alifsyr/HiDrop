@@ -498,7 +498,6 @@
           <div id="otaProgressPct" style="text-align: center; font-size: 0.85rem; margin-top: 6px; color: var(--muted);">0%</div>
         </div>
         
-        <button id="otaCheckBtn" class="btn" style="background: white; color: var(--accent); border: 1px solid var(--accent); margin-bottom: 12px;" onclick="checkOtaUpdate()">Check Update Now</button>
         <button id="otaStartBtn" class="btn" style="display: none;" onclick="startOtaUpdate()">Install Update &amp; Restart</button>
         <div id="otaStatusText" style="margin-top: 12px; font-size: 0.9rem; text-align: center; color: var(--muted);"></div>
       </div>
@@ -903,68 +902,67 @@
     }
 
 
+    let latestGithubRelease = null;
+    let otaCheckDone = false;
+
+    async function backgroundOtaCheck(currentVer) {
+      if (otaCheckDone || !currentVer) return;
+      otaCheckDone = true;
+      try {
+        const res = await fetch('https://api.github.com/repos/alifsyr/HiDrop/releases/latest', {
+          headers: { 'Accept': 'application/vnd.github.v3+json' }
+        });
+        if (res.ok) {
+          latestGithubRelease = await res.json();
+          const latestTag = latestGithubRelease.tag_name || '-';
+          const latestClean = latestTag.replace(/^v/, '');
+          const currentClean = currentVer.replace(/^v/, '');
+          if (latestClean !== currentClean && latestClean !== '-') {
+             document.getElementById('otaBadge').style.display = 'block';
+          }
+        }
+      } catch (err) {
+        console.error("OTA Check Failed", err);
+        otaCheckDone = false;
+      }
+    }
+
     function openOtaModal() {
       document.getElementById('otaModal').style.display = 'flex';
-      document.getElementById('otaCurrentVer').textContent = latestStatus?.device?.firmware_version || '-';
-      document.getElementById('otaLatestVer').textContent = latestStatus?.device?.ota_latest_version || '-';
-      document.getElementById('otaStatusText').textContent = '';
       
-      const hasUpdate = latestStatus?.device?.ota_available;
-      document.getElementById('otaStartBtn').style.display = hasUpdate ? 'block' : 'none';
+      const currentVer = latestStatus?.device?.firmware_version || '-';
+      document.getElementById('otaCurrentVer').textContent = currentVer;
+      
+      const latestTag = latestGithubRelease?.tag_name || '-';
+      document.getElementById('otaLatestVer').textContent = latestTag;
+      
+      const status = document.getElementById('otaStatusText');
+      status.textContent = '';
+      
+      const latestClean = latestTag.replace(/^v/, '');
+      const currentClean = currentVer.replace(/^v/, '');
+      
+      if (!currentClean || currentClean === '-') {
+        status.textContent = 'Cannot determine current version.';
+        status.style.color = 'var(--warn)';
+        document.getElementById('otaStartBtn').style.display = 'none';
+      } else if (latestClean === '-' || latestClean === currentClean) {
+        status.textContent = '✓ Already up to date.';
+        status.style.color = 'var(--ok)';
+        document.getElementById('otaStartBtn').style.display = 'none';
+      } else {
+        status.textContent = `Update available! (${currentClean} → ${latestClean})`;
+        status.style.color = 'var(--warn)';
+        document.getElementById('otaStartBtn').style.display = 'block';
+      }
     }
 
     function closeOtaModal() {
       document.getElementById('otaModal').style.display = 'none';
     }
-
-    
-    async function checkOtaUpdate() {
-      const btn = document.getElementById('otaCheckBtn');
-      const status = document.getElementById('otaStatusText');
-      btn.disabled = true;
-      btn.textContent = 'Checking...';
-      status.textContent = '';
-      status.style.color = 'var(--muted)';
-
-      try {
-        const res = await fetch('https://api.github.com/repos/alifsyr/HiDrop/releases/latest', {
-          headers: { 'Accept': 'application/vnd.github.v3+json' }
-        });
-        if (!res.ok) throw new Error(`GitHub API error: ${res.status}`);
-        const release = await res.json();
-
-        const latestTag = release.tag_name || '-';
-        document.getElementById('otaLatestVer').textContent = latestTag;
-
-        const currentVer = latestStatus?.device?.firmware_version || '';
-        // Compare e.g. "v1.0.11" vs "1.0.11"
-        const latestClean = latestTag.replace(/^v/, '');
-        const currentClean = currentVer.replace(/^v/, '');
-
-        if (!currentClean) {
-          status.textContent = 'Cannot determine current version.';
-          status.style.color = 'var(--warn)';
-        } else if (latestClean === currentClean) {
-          status.textContent = '✓ Already up to date.';
-          status.style.color = 'var(--ok)';
-          document.getElementById('otaStartBtn').style.display = 'none';
-        } else {
-          status.textContent = `Update available! (${currentClean} → ${latestClean})`;
-          status.style.color = 'var(--warn)';
-          document.getElementById('otaStartBtn').style.display = 'block';
-        }
-      } catch (err) {
-        status.textContent = `Failed to check: ${err.message}`;
-        status.style.color = 'var(--danger)';
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Check Update Now';
-      }
-    }
     
     async function startOtaUpdate() {
       const btn = document.getElementById('otaStartBtn');
-      const checkBtn = document.getElementById('otaCheckBtn');
       const status = document.getElementById('otaStatusText');
       const progressWrap = document.getElementById('otaProgressWrap');
       const progressBar = document.getElementById('otaProgressBar');
@@ -975,9 +973,7 @@
         status.style.color = 'var(--danger)';
         return;
       }
-
       btn.disabled = true;
-      checkBtn.disabled = true;
       btn.textContent = 'Sending command...';
       status.textContent = 'Fetching firmware URL from GitHub...';
       status.style.color = 'var(--muted)';
@@ -1031,7 +1027,6 @@
             status.textContent = '✗ Update failed. Check Serial Monitor.';
             status.style.color = 'var(--danger)';
             btn.disabled = false;
-            checkBtn.disabled = false;
             btn.textContent = 'Install Update & Restart';
             unsubOta();
           } else if (pct === 100 || otaStatus === '') {
@@ -1050,7 +1045,6 @@
         status.textContent = `Error: ${err.message}`;
         status.style.color = 'var(--danger)';
         btn.disabled = false;
-        checkBtn.disabled = false;
         btn.textContent = 'Install Update & Restart';
       }
     }
