@@ -341,6 +341,44 @@
 
     let latestStatus = null;
     let latestHistory = null;
+    
+    function updateDualSlider(triggerEl, prefix) {
+      const minSlider = document.getElementById(prefix + 'MinSlider');
+      const maxSlider = document.getElementById(prefix + 'MaxSlider');
+      const minVal = document.getElementById(prefix + 'MinVal');
+      const maxVal = document.getElementById(prefix + 'MaxVal');
+      const progress = document.getElementById(prefix + 'Progress');
+
+      if(!minSlider || !maxSlider) return;
+
+      let min = parseFloat(minSlider.value);
+      let max = parseFloat(maxSlider.value);
+      
+      const minGap = prefix === 'ph' ? 0.2 : 150;
+
+      if (min > max - minGap) {
+        if (triggerEl === minSlider) {
+          minSlider.value = (max - minGap).toString();
+          min = max - minGap;
+        } else {
+          maxSlider.value = (min + minGap).toString();
+          max = min + minGap;
+        }
+      }
+
+      minVal.textContent = prefix === 'ph' ? min.toFixed(2) : min.toString();
+      maxVal.textContent = prefix === 'ph' ? max.toFixed(2) : max.toString();
+
+      const total = parseFloat(minSlider.max) - parseFloat(minSlider.min);
+      const leftPercent = ((min - parseFloat(minSlider.min)) / total) * 100;
+      const widthPercent = ((max - min) / total) * 100;
+
+      if(progress) {
+        progress.style.left = leftPercent + '%';
+        progress.style.width = widthPercent + '%';
+      }
+    }
+
     let isEditingTargets = false;
 
     function formatNumber(value, digits) {
@@ -518,7 +556,7 @@
       
       if (data.device && data.device.time_valid) {
           // Use absolute time if ESP32 has valid RTC time
-          const espTime = new Date(`${data.device.date}T${data.device.time}`).getTime();
+          const espTime = new Date(`${data.device.date.replace(/-/g, '/')} ${data.device.time}`).getTime();
           if (!isNaN(espTime)) {
               lastUpdateMs = espTime;
               isOnline = Math.abs(nowMs - espTime) < 65000; // 65 seconds tolerance
