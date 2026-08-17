@@ -1,79 +1,183 @@
-# Hydroponic Monitoring and Auto-Dosing System
+<div align="center">
 
-ESP32-based hydroponic controller for monitoring water quality and running basic automatic dosing.
+# 💧 HiDrop — Smart Hydroponic Controller
 
-## Bahasa Indonesia
+**ESP32-based IoT hydroponic system with real-time monitoring, auto-dosing, Firebase integration, and OTA firmware updates.**
 
-### Ringkasan
+[![Build and Release](https://github.com/alifsyr/HiDrop/actions/workflows/release.yml/badge.svg)](https://github.com/alifsyr/HiDrop/actions/workflows/release.yml)
+[![PlatformIO](https://img.shields.io/badge/Built%20with-PlatformIO-orange?logo=platformio)](https://platformio.org)
+[![ESP32](https://img.shields.io/badge/Board-ESP32-blue?logo=espressif)](https://www.espressif.com/en/products/socs/esp32)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-Project ini adalah sistem hidroponik berbasis ESP32 yang memantau `TDS`, `pH`, dan `suhu air`, lalu menampilkan data ke LCD 20x4 dan Serial Monitor. Sistem juga mendukung jam realtime `WIB` dari Wi-Fi/NTP, target `pH` dan `PPM` yang bisa diubah saat runtime, serta auto dosing dasar untuk nutrisi dan koreksi pH.
+![Dashboard Preview](image/README/1774870733653.png)
 
-### Fitur Utama
+[Features](#-features) · [Hardware](#-hardware--wiring) · [Getting Started](#-getting-started) · [API Reference](#-api-reference) · [Serial Commands](#-serial-commands) · [Architecture](#-architecture)
 
-- Monitoring `TDS`, `pH`, dan `temperature`.
-- LCD 20x4 dengan layout split:
-  sensor di kiri, nama farm + tanggal/jam di kanan.
-- Running text untuk area kanan jika teks tidak muat.
-- Web dashboard bawaan dari ESP32 untuk monitoring lewat browser.
-- Endpoint JSON `/api/status` untuk integrasi monitoring lain.
-- Sinkronisasi waktu `WIB` melalui Wi-Fi dan NTP.
-- Status boot di LCD saat Wi-Fi belum tersambung.
-- Target `pH` dan `PPM` bisa diubah lewat Serial Monitor dan disimpan ke EEPROM.
-- Notifikasi perubahan target langsung tampil di LCD.
-- Auto dosing:
-  - `PPM` rendah -> pompa `Nutrisi A` dan `Nutrisi B` nyala bersamaan.
-  - `pH` tinggi -> pompa `pH Down`.
-  - `pH` rendah -> pompa `pH Up`.
-- Logging event dosing ke Google Sheets sudah disiapkan, tetapi default-nya masih nonaktif sampai URL Apps Script diisi.
+</div>
 
-### Target Default
+---
 
-- `pH`: `5.8 - 6.2`
-- `PPM`: `600 - 800`
+## ✨ Features
 
-### Hardware dan Pin
+| Category | Details |
+|---|---|
+| **Sensor Monitoring** | TDS (PPM), pH, and water temperature via DS18B20 |
+| **Auto-Dosing** | Automatic nutrient A+B, pH Up/Down pump control |
+| **Display** | 20×4 LCD with split layout — sensors left, farm info right |
+| **Web Dashboard** | Local web UI at `http://ESP32_IP/` with live charts |
+| **REST API** | JSON endpoints for status, history, and dosing reports |
+| **Firebase** | Real-time sync, remote command, and OTA trigger via RTDB |
+| **OTA Updates** | Firmware update via GitHub Releases or Firebase-triggered URL |
+| **WebSerial** | Browser-based serial monitor and command interface |
+| **NTP Clock** | WIB (UTC+7) time sync over Wi-Fi |
+| **EEPROM Persistence** | pH and PPM targets survive reboots |
+| **Google Sheets Logging** | Dosing event logging via Apps Script (optional) |
+| **Dev Mode** | Safe development mode with auto-dosing disabled |
 
-| Fungsi          | GPIO   |
-| --------------- | ------ |
-| TDS Sensor      | `35` |
-| pH Sensor       | `34` |
-| DS18B20         | `4`  |
-| I2C SDA         | `21` |
-| I2C SCL         | `22` |
-| Relay Nutrisi A | `25` |
-| Relay Nutrisi B | `26` |
-| Relay pH Down   | `27` |
-| Relay pH Up     | `33` |
+---
 
-### Alur Auto Dosing
+## 🔧 Hardware & Wiring
 
-- Sistem membaca sensor secara periodik.
-- Jika `PPM < target minimum`, relay `Nutrisi A` dan `Nutrisi B` aktif bersamaan dengan rasio waktu yang sama.
-- Jika `pH > target maksimum`, relay `pH Down` aktif.
-- Jika `pH < target minimum`, relay `pH Up` aktif.
-- Setelah dosing, sistem menunggu waktu mixing lalu membaca ulang sensor.
-- Jika `PPM > target maksimum`, sistem tidak mengencerkan otomatis.
-  Pengenceran air masih manual.
+### Bill of Materials
 
-### Status LCD
+| Component | Description |
+|---|---|
+| ESP32 DevKit | Main microcontroller |
+| TDS Sensor | Analog gravity-type TDS sensor |
+| pH Sensor | Analog pH probe with transmitter |
+| DS18B20 | 1-Wire waterproof temperature sensor |
+| LCD 20×4 I2C | Display module (I2C, addr `0x27`) |
+| 4-Channel Relay | Controls 4 peristaltic pumps |
+| Peristaltic Pumps ×4 | Nutrient A, Nutrient B, pH Down, pH Up |
 
-- `NORMAL` -> tidak ada dosing aktif.
-- `NUTRI A+B` -> dosing nutrisi sedang berjalan atau menunggu recheck nutrisi.
-- `PH ↓ DOSE` -> dosing pH down sedang berjalan atau menunggu recheck.
-- `PH ↑ DOSE` -> dosing pH up sedang berjalan atau menunggu recheck.
+### GPIO Pin Map
 
-### Web Dashboard
+| Function | GPIO |
+|---|---|
+| TDS Sensor (Analog) | `35` |
+| pH Sensor (Analog) | `34` |
+| DS18B20 Temperature | `4` |
+| I2C SDA (LCD) | `21` |
+| I2C SCL (LCD) | `22` |
+| Relay — Nutrient A | `25` |
+| Relay — Nutrient B | `26` |
+| Relay — pH Down | `27` |
+| Relay — pH Up | `33` |
 
-- Dashboard lokal tersedia di `http://IP_ESP32/`
-- API live:
-  - `http://IP_ESP32/api/status` (snapshot device/sensor/target/dosing terkini)
-  - `http://IP_ESP32/api/history` (riwayat sample chart `pH` dan `PPM`)
-  - `http://IP_ESP32/api/reports` (riwayat event dosing terbaru)
-- Menampilkan `pH`, `PPM`, suhu, status Wi-Fi, waktu lokal, mode sensor, mode dosing, target range, dan histori singkat dosing terakhir.
-- Dilengkapi line chart `pH` dan `PPM` untuk melihat tren secara visual.
-- Saat ESP32 berhasil connect Wi-Fi, alamat dashboard akan dicetak ke Serial Monitor.
+---
 
-Contoh respons `/api/status`:
+## 🚀 Getting Started
+
+### Prerequisites
+
+- [PlatformIO IDE](https://platformio.org/install/ide?install=vscode) (VS Code extension) or PlatformIO Core CLI
+- Python 3.x (required by PlatformIO)
+- ESP32 board and all hardware components above
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/alifsyr/HiDrop.git
+cd HiDrop
+```
+
+### 2. Configure Environment Variables
+
+Copy the example file and fill in your credentials:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env`:
+
+```env
+# Wi-Fi Credentials
+WIFI_SSID=your_wifi_ssid
+WIFI_PASSWORD=your_wifi_password
+
+# Google Sheets Logging (optional)
+GOOGLE_SHEETS_LOGGING_ENABLED=false
+GOOGLE_SHEETS_WEB_APP_URL=
+GOOGLE_SHEETS_SHARED_SECRET=
+```
+
+> **Important:** `.env` is in `.gitignore` and will **never** be committed. Do not rename it or commit credentials.
+
+### 3. Build and Flash
+
+```bash
+# Build firmware
+pio run
+
+# Flash to ESP32 (connect via USB)
+pio run -t upload
+
+# Open serial monitor
+pio device monitor -b 115200
+```
+
+After a successful Wi-Fi connection, the IP address of the dashboard is printed to the serial monitor:
+
+```
+WiFi Connected! IP Address: 192.168.1.50
+```
+
+Open `http://192.168.1.50/` in a browser to access the dashboard.
+
+---
+
+## 📊 Default Targets
+
+| Parameter | Default Range |
+|---|---|
+| pH | `5.8 – 6.2` |
+| PPM (TDS) | `600 – 800` |
+
+Targets can be changed at runtime via serial commands or WebSerial and are persisted to EEPROM.
+
+---
+
+## 🤖 Auto-Dosing Logic
+
+The dosing controller reads sensors periodically and acts on these rules:
+
+```
+PPM < target_min  →  Nutrient A + B pumps run simultaneously
+pH  > target_max  →  pH Down pump runs
+pH  < target_min  →  pH Up pump runs
+PPM > target_max  →  No automatic dilution (manual water change required)
+```
+
+After each dosing cycle, the system waits for a configurable **mixing delay** before rechecking sensors.
+
+### LCD Status Codes
+
+| LCD Display | Meaning |
+|---|---|
+| `NORMAL` | Monitoring only, no active dosing |
+| `NUTRI A+B` | Nutrient dosing active or awaiting recheck |
+| `PH ↓ DOSE` | pH Down dosing active or awaiting recheck |
+| `PH ↑ DOSE` | pH Up dosing active or awaiting recheck |
+
+---
+
+## 🌐 Web Dashboard & API Reference
+
+The embedded web dashboard is served directly from the ESP32.
+
+**Dashboard:** `http://ESP32_IP/`
+
+### Endpoints
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/api/status` | GET | Live device, sensor, target, and dosing snapshot |
+| `/api/history` | GET | Historical pH and PPM chart data samples |
+| `/api/reports` | GET | Latest dosing event log |
+| `/webserial` | GET | Browser-based serial monitor (WebSerial UI) |
+
+### `GET /api/status` — Example Response
 
 ```json
 {
@@ -107,145 +211,125 @@ Contoh respons `/api/status`:
 }
 ```
 
-### Command Serial
+---
 
-Pengaturan target:
+## 💬 Serial Commands
 
-- `SET PH <min> <max>`
-- `SET PPM <min> <max>`
-- `SHOW TARGETS`
-- `RESET TARGETS`
+Commands can be sent via USB Serial Monitor (115200 baud) or through the **WebSerial** browser interface at `http://ESP32_IP/webserial`.
 
-Kalibrasi TDS:
+### Target Configuration
 
-- `ENTER`
-- `EXIT`
-- command lain diteruskan ke library `GravityTDS`
+| Command | Description |
+|---|---|
+| `SET PH <min> <max>` | Set pH target range, e.g. `SET PH 5.8 6.2` |
+| `SET PPM <min> <max>` | Set PPM target range, e.g. `SET PPM 600 800` |
+| `SHOW TARGETS` | Print current targets to serial |
+| `RESET TARGETS` | Restore default targets |
 
-### Build dan Upload
+### Manual Dosing
 
-Sebelum build, buat file `.env` atau `.env.local` dari `.env.example`, lalu isi credential pribadi Anda.
+| Command | Description |
+|---|---|
+| `DOSE NUTRI` | Trigger a manual nutrient A+B dosing cycle |
+| `DOSE PH DOWN` | Trigger a manual pH Down dosing cycle |
+| `DOSE PH UP` | Trigger a manual pH Up dosing cycle |
 
-Contoh:
+### TDS Calibration
 
-```env
-WIFI_SSID=your_wifi_ssid
-WIFI_PASSWORD=your_wifi_password
-GOOGLE_SHEETS_LOGGING_ENABLED=false
-GOOGLE_SHEETS_WEB_APP_URL=
-GOOGLE_SHEETS_SHARED_SECRET=
-```
+| Command | Description |
+|---|---|
+| `ENTER` | Enter TDS calibration mode |
+| `EXIT` | Exit TDS calibration mode |
+| *(other)* | Forwarded to the `GravityTDS` library calibration handler |
 
-```bash
-pio run
-pio run -t upload
-pio device monitor -b 115200
-```
+### System
+
+| Command | Description |
+|---|---|
+| `RESET WIFI` | Clear Wi-Fi settings and reboot (triggers Wi-Fi Manager captive portal) |
+| `DEV STATUS` | Print dev mode info (only in DEV_MODE builds) |
 
 ---
 
-## English
+## ☁️ Firebase Integration
 
-### Overview
+HiDrop supports two-way communication with Firebase Realtime Database:
 
-This project is an ESP32-based hydroponic system that monitors `TDS`, `pH`, and `water temperature`, then shows the data on a 20x4 LCD and the serial monitor. It also supports real-time `WIB` clock sync over Wi-Fi/NTP, runtime-configurable `pH` and `PPM` targets, and basic automatic dosing for nutrients and pH correction.
+- **Telemetry push** — sensor readings, dosing state, and uptime are continuously synced to RTDB.
+- **Remote commands** — target range changes (`SET PH`, `SET PPM`) can be pushed from the cloud.
+- **OTA trigger** — a firmware update URL and version tag written to RTDB triggers the ESP32 to self-update over-the-air.
 
-### Key Features
+### OTA Firmware Update Flow
 
-- `TDS`, `pH`, and temperature monitoring.
-- 20x4 LCD split layout:
-  sensor data on the left, farm name + date/time on the right.
-- Running text for right-side content when it exceeds the display width.
-- Built-in ESP32 web dashboard for browser-based monitoring.
-- JSON endpoint at `/api/status` for external monitoring integrations.
-- `WIB` time synchronization via Wi-Fi and NTP.
-- LCD boot status while Wi-Fi is connecting.
-- Runtime `pH` and `PPM` target updates through Serial Monitor, stored in EEPROM.
-- LCD notification whenever targets are changed.
-- Auto dosing:
-  - low `PPM` -> `Nutrient A` and `Nutrient B` pumps run together.
-  - high `pH` -> `pH Down` pump runs.
-  - low `pH` -> `pH Up` pump runs.
-- Google Sheets event logging is prepared, but disabled by default until the Apps Script URL is configured.
-
-### Default Targets
-
-- `pH`: `5.8 - 6.2`
-- `PPM`: `600 - 800`
-
-### Hardware and Pins
-
-| Function         | GPIO   |
-| ---------------- | ------ |
-| TDS Sensor       | `35` |
-| pH Sensor        | `34` |
-| DS18B20          | `4`  |
-| I2C SDA          | `21` |
-| I2C SCL          | `22` |
-| Nutrient A Relay | `25` |
-| Nutrient B Relay | `26` |
-| pH Down Relay    | `27` |
-| pH Up Relay      | `33` |
-
-### Auto-Dosing Flow
-
-- The system reads sensors periodically.
-- If `PPM < minimum target`, `Nutrient A` and `Nutrient B` relays run at the same time with the same dosing time ratio.
-- If `pH > maximum target`, the `pH Down` relay runs.
-- If `pH < minimum target`, the `pH Up` relay runs.
-- After dosing, the system waits for mixing and then rechecks the sensors.
-- If `PPM > maximum target`, dilution is not automatic yet.
-  Water dilution is still manual.
-
-### LCD Status
-
-- `NORMAL` -> no active dosing.
-- `NUTRI A+B` -> nutrient dosing is active or waiting for nutrient recheck.
-- `PH ↓ DOSE` -> pH down dosing is active or waiting for recheck.
-- `PH ↑ DOSE` -> pH up dosing is active or waiting for recheck.
-
-### Web Dashboard
-
-- Local dashboard is available at `http://ESP32_IP/`
-- Live API:
-  - `http://ESP32_IP/api/status` (latest device/sensor/target/dosing snapshot)
-  - `http://ESP32_IP/api/history` (chart history samples for `pH` and `PPM`)
-  - `http://ESP32_IP/api/reports` (latest dosing event reports)
-- Shows `pH`, `PPM`, temperature, Wi-Fi status, local time, sensor mode, dosing mode, target ranges, and a short recent dosing history.
-- Includes `pH` and `PPM` line charts for quick visual trend monitoring.
-- Once Wi-Fi is connected, the device prints the dashboard address to the serial monitor.
-
-### Serial Commands
-
-Target configuration:
-
-- `SET PH <min> <max>`
-- `SET PPM <min> <max>`
-- `SHOW TARGETS`
-- `RESET TARGETS`
-
-TDS calibration:
-
-- `ENTER`
-- `EXIT`
-- other commands are forwarded to the `GravityTDS` library
-
-### Build and Upload
-
-Before building, create a `.env` or `.env.local` file from `.env.example`, then fill in your private credentials.
-
-Example:
-
-```env
-WIFI_SSID=your_wifi_ssid
-WIFI_PASSWORD=your_wifi_password
-GOOGLE_SHEETS_LOGGING_ENABLED=false
-GOOGLE_SHEETS_WEB_APP_URL=
-GOOGLE_SHEETS_SHARED_SECRET=
+```
+GitHub Push → CI Build → GitHub Release (.bin) → Firebase RTDB ← ESP32 polls
+                                                         ↓
+                                               ESP32 downloads & flashes
 ```
 
-```bash
-pio run
-pio run -t upload
-pio device monitor -b 115200
+The CI/CD pipeline (`.github/workflows/release.yml`) automatically builds and publishes a release binary on every push to `main`/`master`. The binary version is tagged as `v1.0.<run_number>`.
+
+---
+
+## 🏗️ Architecture
+
 ```
+src/
+└── main.cpp                  # Entry point, setup & loop
+
+include/
+├── actuators/                # Relay / pump control
+├── config/                   # App constants, pin definitions
+├── control/                  # Dosing controller, sensor manager, target manager
+├── display/                  # LCD display rendering
+├── models/                   # Data structures (SensorData, DosingReport)
+├── network/                  # WiFi/NTP, Firebase, Google Sheets, OTA
+├── sensors/                  # TDS, pH, temperature sensor wrappers
+└── utils/                    # Logger and shared utilities
+```
+
+### Key Libraries
+
+| Library | Purpose |
+|---|---|
+| `ESPAsyncWebServer` | Async HTTP server for dashboard and API |
+| `WebSerial` | Browser-based serial terminal |
+| `Firebase Arduino Client` | Firebase RTDB client |
+| `DallasTemperature` / `OneWire` | DS18B20 temperature sensor |
+| `LiquidCrystal_I2C` | I2C LCD display |
+| `ArduinoJson` | JSON serialization |
+| `ESPAsyncWiFiManager` | Captive portal for Wi-Fi provisioning |
+
+---
+
+## 🔁 CI/CD
+
+Every push to `main` or `master` triggers the GitHub Actions workflow:
+
+1. **Build** — PlatformIO compiles the firmware with version `1.0.<run_number>`
+2. **Release** — A GitHub Release is created and `firmware.bin` is attached as an asset
+3. **OTA** — The release binary can be referenced via Firebase to trigger remote device updates
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please open an issue or pull request.
+
+1. Fork the repository
+2. Create your feature branch: `git checkout -b feat/your-feature`
+3. Commit your changes: `git commit -m 'feat: add your feature'`
+4. Push to the branch: `git push origin feat/your-feature`
+5. Open a Pull Request
+
+---
+
+## 📄 License
+
+This project is licensed under the [MIT License](LICENSE).
+
+---
+
+<div align="center">
+Made with ❤️ for smarter farming · <a href="http://alif-tech.my.id/">alif-tech.my.id</a>
+</div>
