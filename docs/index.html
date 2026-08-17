@@ -1026,7 +1026,7 @@
           const otaStatus = d.ota_status || '';
           const pct = d.ota_progress || 0;
 
-          if (otaStatus === 'downloading') {
+          if (otaStatus === 'downloading' && pct < 100) {
             progressBar.style.width = pct + '%';
             progressPct.textContent = pct + '%';
             status.textContent = `Downloading firmware... ${pct}%`;
