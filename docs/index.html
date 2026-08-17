@@ -167,10 +167,17 @@
       flex-wrap: wrap;
     }
 
+    .table-responsive {
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
       font-size: 0.95rem;
+      white-space: nowrap;
     }
 
     th, td {
@@ -340,6 +347,59 @@
       .hero,
       .panel {
         padding: 20px;
+      }
+
+      .table-responsive {
+        border: 0;
+      }
+
+      .table-responsive table {
+        border: 0;
+      }
+
+      .table-responsive thead {
+        border: none;
+        clip: rect(0 0 0 0);
+        height: 1px;
+        margin: -1px;
+        overflow: hidden;
+        padding: 0;
+        position: absolute;
+        width: 1px;
+      }
+
+      .table-responsive tr {
+        border-bottom: 2px solid rgba(19, 52, 43, 0.1);
+        display: block;
+        margin-bottom: 16px;
+        background: rgba(255, 255, 255, 0.5);
+        border-radius: 12px;
+        padding: 8px 0;
+      }
+
+      .table-responsive td {
+        border-bottom: 1px solid rgba(19, 52, 43, 0.05);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        text-align: right;
+        padding: 10px 16px;
+        white-space: normal;
+      }
+
+      .table-responsive td:last-child {
+        border-bottom: 0;
+      }
+
+      .table-responsive td::before {
+        content: attr(data-label);
+        font-size: 0.82rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--muted);
+        text-align: left;
+        margin-right: 16px;
+        font-weight: 600;
       }
     }
   </style>
@@ -685,29 +745,31 @@
 
       const rows = reports.map((report) => `
         <tr>
-          <td class="mono">${report.date} ${report.time}</td>
-          <td>${formatNumber(report.ppm_start, 0)} -> ${formatNumber(report.ppm_end, 0)}</td>
-          <td>${formatNumber(report.ph_start, 2)} -> ${formatNumber(report.ph_end, 2)}</td>
-          <td>${formatNumber(report.na_ml, 2)} / ${formatNumber(report.nb_ml, 2)}</td>
-          <td>${formatNumber(report.ph_down_ml, 2)} / ${formatNumber(report.ph_up_ml, 2)}</td>
-          <td>${report.manual_dilution_required ? "Manual dilution" : "Completed"}</td>
+          <td data-label="Timestamp" class="mono">${report.date} ${report.time}</td>
+          <td data-label="PPM">${formatNumber(report.ppm_start, 0)} -> ${formatNumber(report.ppm_end, 0)}</td>
+          <td data-label="pH">${formatNumber(report.ph_start, 2)} -> ${formatNumber(report.ph_end, 2)}</td>
+          <td data-label="Nutrient A/B">${formatNumber(report.na_ml, 2)} / ${formatNumber(report.nb_ml, 2)}</td>
+          <td data-label="pH Down/Up">${formatNumber(report.ph_down_ml, 2)} / ${formatNumber(report.ph_up_ml, 2)}</td>
+          <td data-label="Result">${report.manual_dilution_required ? "Manual dilution" : "Completed"}</td>
         </tr>
       `).join("");
 
       container.innerHTML = `
-        <table>
-          <thead>
-            <tr>
-              <th>Timestamp</th>
-              <th>PPM</th>
-              <th>pH</th>
-              <th>Nutrient A/B (ml)</th>
-              <th>pH Down/Up (ml)</th>
-              <th>Result</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>PPM</th>
+                <th>pH</th>
+                <th>Nutrient A/B (ml)</th>
+                <th>pH Down/Up (ml)</th>
+                <th>Result</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
       `;
     }
 
