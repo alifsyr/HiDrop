@@ -4,6 +4,7 @@
 
 #include "config/app_config.h"
 #include "config/pins.h"
+#include "utils/logger.h"
 #include "control/dosing_controller.h"
 #include "control/sensor_manager.h"
 #include "control/target_range_manager.h"
@@ -63,6 +64,13 @@ void processCommand(String command) {
   SensorData currentCmdData = sensorManager.getSensorData();
   struct tm localTimeCmdInfo = {};
   bool timeValidCmd = wifiClock.getLocalTime(localTimeCmdInfo);
+
+  if (command == "RESET WIFI") {
+      Logger::println("Resetting WiFi config and rebooting...");
+      delay(1000);
+      WifiClock::resetSettings();
+      return;
+  }
 
   if (!dosingController.triggerManualDose(
           command, currentCmdData,
