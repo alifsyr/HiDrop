@@ -99,6 +99,16 @@ void setup() {
   targetRangeManager.begin();
   sensorManager.begin();
   lcdDisplay.begin();
+  lcdDisplay.showInitializing();
+  
+  wifiClock.setApCallback([]() {
+      lcdDisplay.showMessage(
+          "WiFi Setup Mode",
+          "Connect to AP:",
+          "Hydroponic_Setup",
+          "IP: 192.168.4.1"
+      );
+  });
   wifiClock.begin();
   dosingController.begin();
   sheetsLogger.begin();

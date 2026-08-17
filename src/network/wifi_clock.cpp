@@ -52,6 +52,10 @@ void WifiClock::saveStaticIpConfig() {
     _prefs.end();
 }
 
+void WifiClock::setApCallback(std::function<void()> cb) {
+    _apCallback = cb;
+}
+
 extern AsyncWebServer server;
 
 void WifiClock::begin() {
@@ -59,6 +63,12 @@ void WifiClock::begin() {
     
     _dns = new DNSServer();
     _wm = new AsyncWiFiManager(&server, _dns);
+
+    if (_apCallback) {
+        _wm->setAPCallback([this](AsyncWiFiManager *myWiFiManager) {
+            _apCallback();
+        });
+    }
 
     _wm->setSaveConfigCallback(saveConfigCallback);
 

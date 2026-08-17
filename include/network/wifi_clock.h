@@ -5,6 +5,7 @@
 #include <ESPAsyncWebServer.h>
 #include <ESPAsyncWiFiManager.h>
 #include <Preferences.h>
+#include <functional>
 
 #include <DNSServer.h>
 
@@ -20,6 +21,8 @@ public:
     
     // Call this to reset WiFi settings and reboot
     static void resetSettings();
+
+    void setApCallback(std::function<void()> cb);
 
 private:
     void configureTimeIfNeeded();
@@ -41,4 +44,6 @@ private:
     AsyncWiFiManagerParameter* _paramIp;
     AsyncWiFiManagerParameter* _paramGw;
     AsyncWiFiManagerParameter* _paramSn;
+
+    std::function<void()> _apCallback;
 };
