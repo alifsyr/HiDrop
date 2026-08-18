@@ -9,7 +9,7 @@
 [![ESP32](https://img.shields.io/badge/Board-ESP32-blue?logo=espressif)](https://www.espressif.com/en/products/socs/esp32)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-![Dashboard Preview](https://raw.githubusercontent.com/alifsyr/HiDrop/master/image/README/1774870733653.png)
+![Dashboard Preview](image/README/dashboard_v2.png)
 
 [Features](#-features) · [Hardware](#-hardware--wiring) · [Getting Started](#-getting-started) · [API Reference](#-api-reference) · [Serial Commands](#-serial-commands) · [Architecture](#-architecture)
 
