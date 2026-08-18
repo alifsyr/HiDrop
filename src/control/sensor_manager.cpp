@@ -1,4 +1,5 @@
 #include "control/sensor_manager.h"
+#include "utils/logger.h"
 
 SensorManager::SensorManager(
     TdsSensor &tdsSensor,
@@ -104,13 +105,6 @@ SensorData SensorManager::getSensorData() const {
     return data;
 }
 
-float SensorManager::getPh() const {
-    return _phValue;
-}
-
-float SensorManager::getTemperatureC() const {
-    return _temperatureC;
-}
 
 const char *SensorManager::getMode() const {
     switch (_mode) {

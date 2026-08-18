@@ -4,6 +4,7 @@
 
 #include "config/app_config.h"
 #include "config/pins.h"
+#include "utils/logger.h"
 #include "control/dosing_controller.h"
 #include "control/sensor_manager.h"
 #include "control/target_range_manager.h"
@@ -16,6 +17,11 @@
 #include "sensors/ph_sensor.h"
 #include "sensors/tds_sensor.h"
 #include "sensors/temp_sensor.h"
+
+#include <ESPAsyncWebServer.h>
+#include <WebSerial.h>
+
+AsyncWebServer server(80);
 
 namespace {
 bool wasWifiConnected = false;
@@ -41,12 +47,46 @@ SensorManager sensorManager(tdsSensor, phSensor, tempSensor,
 
 LcdDisplay lcdDisplay(AppConfig::LCD_I2C_ADDRESS, AppConfig::LCD_COLUMNS,
                       AppConfig::LCD_ROWS);
-WifiClock wifiClock(AppConfig::WIFI_SSID, AppConfig::WIFI_PASSWORD);
+WifiClock wifiClock;
 DosingController dosingController;
 GoogleSheetsLogger sheetsLogger;
 FirebaseClient firebaseClient;
 TargetRangeManager targetRangeManager;
 OtaUpdater otaUpdater("alifsyr", "HiDrop");
+
+void processCommand(String command) {
+  command.trim();
+  if (command.length() == 0) return;
+  
+  WebSerial.println("> " + command);
+  Serial.println("> " + command);
+
+  SensorData currentCmdData = sensorManager.getSensorData();
+  struct tm localTimeCmdInfo = {};
+  bool timeValidCmd = wifiClock.getLocalTime(localTimeCmdInfo);
+
+  if (command == "RESET WIFI") {
+      Logger::println("Resetting WiFi config and rebooting...");
+      delay(1000);
+      WifiClock::resetSettings();
+      return;
+  }
+
+  if (!dosingController.triggerManualDose(
+          command, currentCmdData,
+          timeValidCmd ? &localTimeCmdInfo : nullptr, timeValidCmd) &&
+      !targetRangeManager.handleCommand(command)) {
+    sensorManager.handleCalibrationCommand(command);
+  }
+}
+
+void recvMsg(uint8_t *data, size_t len) {
+  String cmd = "";
+  for(size_t i=0; i < len; i++){
+    cmd += char(data[i]);
+  }
+  processCommand(cmd);
+}
 
 void setup() {
   Serial.begin(115200);
@@ -59,6 +99,16 @@ void setup() {
   targetRangeManager.begin();
   sensorManager.begin();
   lcdDisplay.begin();
+  lcdDisplay.showInitializing();
+  
+  wifiClock.setApCallback([]() {
+      lcdDisplay.showMessage(
+          "WiFi Setup Mode",
+          "Connect to AP:",
+          "Hydroponic_Setup",
+          "IP: 192.168.4.1"
+      );
+  });
   wifiClock.begin();
   dosingController.begin();
   sheetsLogger.begin();
@@ -80,6 +130,11 @@ void setup() {
       });
   otaUpdater.begin();
   firebaseClient.begin();
+
+  // Initialize WebSerial
+  WebSerial.begin(&server);
+  WebSerial.onMessage(recvMsg);
+  server.begin();
 
   Serial.println();
 
@@ -109,16 +164,7 @@ void loop() {
       command.trim();
 
       if (command.length() > 0) {
-        SensorData currentCmdData = sensorManager.getSensorData();
-        struct tm localTimeCmdInfo = {};
-        bool timeValidCmd = wifiClock.getLocalTime(localTimeCmdInfo);
-
-        if (!dosingController.triggerManualDose(
-                command, currentCmdData,
-                timeValidCmd ? &localTimeCmdInfo : nullptr, timeValidCmd) &&
-            !targetRangeManager.handleCommand(command)) {
-          sensorManager.handleCalibrationCommand(command);
-        }
+        processCommand(command);
       }
 
       serialCommandLength = 0;
@@ -159,6 +205,8 @@ void loop() {
     initFinishStartMs = now;
     Serial.print("WiFi Connected! IP Address: ");
     Serial.println(WiFi.localIP());
+    WebSerial.print("WiFi Connected! IP Address: ");
+    WebSerial.println(WiFi.localIP());
   }
 
   dosingController.update(currentData, sensorManager.isCalibrationMode(),
@@ -188,11 +236,15 @@ void loop() {
     unsigned long mins = (uptimeSec % 3600) / 60;
     unsigned long secs = uptimeSec % 60;
 
-    Serial.printf("[Status%s] Uptime: %02lu:%02lu:%02lu | Temp: %.1fC | TDS: %.0fppm | pH: %.2f | State: %s\n",
+    char logBuf[128];
+    snprintf(logBuf, sizeof(logBuf), "[Status%s] Uptime: %02lu:%02lu:%02lu | Temp: %.1fC | TDS: %.0fppm | pH: %.2f | State: %s",
         dosingController.isDevMode() ? "|DEV" : "",
         hours, mins, secs,
         currentData.temperatureC, currentData.tds, currentData.phValue, 
         dosingController.getStateLabel());
+        
+    Serial.println(logBuf);
+    WebSerial.println(logBuf);
   }
 
   if (now - lastLcdMs >= AppConfig::LCD_REFRESH_INTERVAL_MS) {
@@ -215,3 +267,4 @@ void loop() {
                     timeValid);
   }
 }
+// trigger build

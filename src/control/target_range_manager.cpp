@@ -5,6 +5,7 @@
 #include <stdlib.h>
 
 #include "config/app_config.h"
+#include "utils/logger.h"
 
 namespace {
 constexpr uint32_t kTargetRangeMagic = 0x48524431UL;
@@ -31,8 +32,8 @@ bool TargetRangeManager::handleCommand(const String &command) {
         return false;
     }
 
-    String tokens[4];
-    const uint8_t count = tokenize(input, tokens, 4);
+    String tokens[6];
+    const uint8_t count = tokenize(input, tokens, 6);
     if (count == 0) {
         return false;
     }
@@ -48,7 +49,7 @@ bool TargetRangeManager::handleCommand(const String &command) {
 
     if (count == 2 && token0 == "RESET" && (tokens[1] == "TARGETS" || tokens[1] == "RANGES")) {
         resetToDefaults();
-        Serial.println("Target ranges reset to defaults.");
+        Logger::println("Target ranges reset to defaults.");
         printRanges();
         return true;
     }
@@ -57,7 +58,7 @@ bool TargetRangeManager::handleCommand(const String &command) {
         float minValue = 0.0f;
         float maxValue = 0.0f;
         if (!parseNumber(tokens[1], minValue) || !parseNumber(tokens[2], maxValue)) {
-            Serial.println("Invalid pH number format. Example: SET PH 5.8 6.2");
+            Logger::println("Invalid pH number format. Example: SET PH 5.8 6.2");
             return true;
         }
         return setPhRange(minValue, maxValue);
@@ -67,7 +68,7 @@ bool TargetRangeManager::handleCommand(const String &command) {
         float minValue = 0.0f;
         float maxValue = 0.0f;
         if (!parseNumber(tokens[1], minValue) || !parseNumber(tokens[2], maxValue)) {
-            Serial.println("Invalid PPM number format. Example: SET PPM 600 800");
+            Logger::println("Invalid PPM number format. Example: SET PPM 600 800");
             return true;
         }
         return setPpmRange(minValue, maxValue);
@@ -77,7 +78,7 @@ bool TargetRangeManager::handleCommand(const String &command) {
         float minValue = 0.0f;
         float maxValue = 0.0f;
         if (!parseNumber(tokens[2], minValue) || !parseNumber(tokens[3], maxValue)) {
-            Serial.println("Invalid pH number format. Example: SET PH 5.8 6.2");
+            Logger::println("Invalid pH number format. Example: SET PH 5.8 6.2");
             return true;
         }
         return setPhRange(minValue, maxValue);
@@ -87,10 +88,39 @@ bool TargetRangeManager::handleCommand(const String &command) {
         float minValue = 0.0f;
         float maxValue = 0.0f;
         if (!parseNumber(tokens[2], minValue) || !parseNumber(tokens[3], maxValue)) {
-            Serial.println("Invalid PPM number format. Example: SET PPM 600 800");
+            Logger::println("Invalid PPM number format. Example: SET PPM 600 800");
             return true;
         }
         return setPpmRange(minValue, maxValue);
+    }
+
+    if (count == 6 && token0 == "SET" && tokens[1] == "ALL") {
+        float phMin = 0.0f, phMax = 0.0f, ppmMin = 0.0f, ppmMax = 0.0f;
+        if (!parseNumber(tokens[2], phMin) || !parseNumber(tokens[3], phMax) ||
+            !parseNumber(tokens[4], ppmMin) || !parseNumber(tokens[5], ppmMax)) {
+            Logger::println("Invalid number format. Example: SET ALL 5.8 6.2 600 800");
+            return true;
+        }
+
+        if (!isValidPhRange(phMin, phMax) || !isValidPpmRange(ppmMin, ppmMax)) {
+            Logger::println("Invalid ranges.");
+            return true;
+        }
+
+        _ranges.phMin = phMin;
+        _ranges.phMax = phMax;
+        _ranges.ppmMin = ppmMin;
+        _ranges.ppmMax = ppmMax;
+        saveToEeprom();
+        setDisplayMessage(
+            "Targets Saved",
+            "pH " + String(_ranges.phMin, 2) + " - " + String(_ranges.phMax, 2),
+            "PPM " + String(_ranges.ppmMin, 0) + " - " + String(_ranges.ppmMax, 0),
+            "Saved to Cloud & EEPROM"
+        );
+        Logger::println("All targets updated.");
+        printRanges();
+        return true;
     }
 
     return false;
@@ -114,20 +144,20 @@ bool TargetRangeManager::consumeDisplayMessage(String &line1, String &line2, Str
 }
 
 void TargetRangeManager::printRanges() const {
-    Serial.println("Current target ranges:");
-    Serial.print("- pH : ");
-    Serial.print(_ranges.phMin, 2);
-    Serial.print(" - ");
-    Serial.println(_ranges.phMax, 2);
-    Serial.print("- PPM: ");
-    Serial.print(_ranges.ppmMin, 0);
-    Serial.print(" - ");
-    Serial.println(_ranges.ppmMax, 0);
-    Serial.println("Commands:");
-    Serial.println("  SET PH <min> <max>");
-    Serial.println("  SET PPM <min> <max>");
-    Serial.println("  SHOW TARGETS");
-    Serial.println("  RESET TARGETS");
+    Logger::println("Current target ranges:");
+    Logger::print("- pH : ");
+    Logger::print(_ranges.phMin, 2);
+    Logger::print(" - ");
+    Logger::println(_ranges.phMax, 2);
+    Logger::print("- PPM: ");
+    Logger::print(_ranges.ppmMin, 0);
+    Logger::print(" - ");
+    Logger::println(_ranges.ppmMax, 0);
+    Logger::println("Commands:");
+    Logger::println("  SET PH <min> <max>");
+    Logger::println("  SET PPM <min> <max>");
+    Logger::println("  SHOW TARGETS");
+    Logger::println("  RESET TARGETS");
 }
 
 bool TargetRangeManager::loadFromEeprom() {
@@ -174,7 +204,7 @@ void TargetRangeManager::resetToDefaults() {
 
 bool TargetRangeManager::setPhRange(float minValue, float maxValue) {
     if (!isValidPhRange(minValue, maxValue)) {
-        Serial.println("Invalid pH range. Example: SET PH 5.8 6.2");
+        Logger::println("Invalid pH range. Example: SET PH 5.8 6.2");
         return true;
     }
 
@@ -188,14 +218,14 @@ bool TargetRangeManager::setPhRange(float minValue, float maxValue) {
         "Saved to EEPROM"
     );
 
-    Serial.println("pH target updated.");
+    Logger::println("pH target updated.");
     printRanges();
     return true;
 }
 
 bool TargetRangeManager::setPpmRange(float minValue, float maxValue) {
     if (!isValidPpmRange(minValue, maxValue)) {
-        Serial.println("Invalid PPM range. Example: SET PPM 600 800");
+        Logger::println("Invalid PPM range. Example: SET PPM 600 800");
         return true;
     }
 
@@ -209,7 +239,7 @@ bool TargetRangeManager::setPpmRange(float minValue, float maxValue) {
         "Saved to EEPROM"
     );
 
-    Serial.println("PPM target updated.");
+    Logger::println("PPM target updated.");
     printRanges();
     return true;
 }

@@ -9,8 +9,7 @@
 #include "config/app_config.h"
 
 FirebaseClient::FirebaseClient()
-    : _firebaseReady(false),
-      _historySampleCount(0),
+    : _historySampleCount(0),
       _historySampleHead(0),
       _lastHistorySampleMs(0),
       _lastFirebaseUpdateMs(0),
@@ -263,8 +262,7 @@ void FirebaseClient::checkIncomingCommands() {
                 if (jsonData.success) ppm_max = jsonData.doubleValue;
                 
                 if (_commandCallback) {
-                    _commandCallback("SET PH " + String(ph_min) + " " + String(ph_max));
-                    _commandCallback("SET PPM " + String(ppm_min) + " " + String(ppm_max));
+                    _commandCallback("SET ALL " + String(ph_min, 2) + " " + String(ph_max, 2) + " " + String(ppm_min, 0) + " " + String(ppm_max, 0));
                 }
                 
                 // Clear the flag

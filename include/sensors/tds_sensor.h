@@ -14,7 +14,6 @@ class TdsSensor {
   
       float getTds() const;
       float getKvalue();
-      SensorData getData(float temperatureC) const;
   
   private:
       int _pin;

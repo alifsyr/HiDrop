@@ -63,7 +63,6 @@ private:
     FirebaseData _fbdo2;    // used for OTA command polling
     FirebaseAuth _auth;
     FirebaseConfig _config;
-    bool _firebaseReady;
 
     Snapshot _snapshot;
     HistorySample _historySamples[kHistorySamplesSize];

@@ -4,6 +4,7 @@
 
 #include "config/app_config.h"
 #include "config/pins.h"
+#include "utils/logger.h"
 
 namespace {
 constexpr unsigned long kMinRelayOnMs = 500;
@@ -117,7 +118,7 @@ void DosingController::update(
                 setRelay(Pins::RELAY_NUTRI_B, false);
                 _state = State::WAITING_RECHECK;
                 _stateStartedMs = now;
-                Serial.println("[Dosing] Nutrient A + B dose complete. Waiting for solution mixing.");
+                Logger::println("[Dosing] Nutrient A + B dose complete. Waiting for solution mixing.");
             }
             return;
 
@@ -126,7 +127,7 @@ void DosingController::update(
                 setRelay(Pins::RELAY_PH_DOWN, false);
                 _state = State::WAITING_RECHECK;
                 _stateStartedMs = now;
-                Serial.println("[Dosing] pH Down dose complete. Waiting for solution mixing.");
+                Logger::println("[Dosing] pH Down dose complete. Waiting for solution mixing.");
             }
             return;
 
@@ -135,7 +136,7 @@ void DosingController::update(
                 setRelay(Pins::RELAY_PH_UP, false);
                 _state = State::WAITING_RECHECK;
                 _stateStartedMs = now;
-                Serial.println("[Dosing] pH Up dose complete. Waiting for solution mixing.");
+                Logger::println("[Dosing] pH Up dose complete. Waiting for solution mixing.");
             }
             return;
 
@@ -226,12 +227,12 @@ bool DosingController::triggerManualDose(const String &cmd, const SensorData &da
     if (!upper.startsWith("DEV ")) return false;
 
     if (_state != State::IDLE) {
-        Serial.println("[DevMode] Cannot trigger: dosing already in progress.");
+        Logger::println("[DevMode] Cannot trigger: dosing already in progress.");
         return true;
     }
 
     if (upper == "DEV NUTRI") {
-        Serial.println("[DevMode] Manual trigger: Dosing Nutrient A + B");
+        Logger::println("[DevMode] Manual trigger: Dosing Nutrient A + B");
         startEvent(data, localTime, timeValid);
         _pendingAction = Action::DOSE_NUTRIENTS;
         startNutrientDoseState("[DevMode] Dosing Nutrient A + B together");
@@ -239,7 +240,7 @@ bool DosingController::triggerManualDose(const String &cmd, const SensorData &da
     }
 
     if (upper == "DEV PH UP") {
-        Serial.println("[DevMode] Manual trigger: Dosing pH Up");
+        Logger::println("[DevMode] Manual trigger: Dosing pH Up");
         startEvent(data, localTime, timeValid);
         _pendingAction = Action::DOSE_PH_UP;
         startRelayState(
@@ -252,7 +253,7 @@ bool DosingController::triggerManualDose(const String &cmd, const SensorData &da
     }
 
     if (upper == "DEV PH DOWN") {
-        Serial.println("[DevMode] Manual trigger: Dosing pH Down");
+        Logger::println("[DevMode] Manual trigger: Dosing pH Down");
         startEvent(data, localTime, timeValid);
         _pendingAction = Action::DOSE_PH_DOWN;
         startRelayState(
@@ -265,7 +266,7 @@ bool DosingController::triggerManualDose(const String &cmd, const SensorData &da
     }
 
     if (upper == "DEV STOP") {
-        Serial.println("[DevMode] Manual stop: all relays off.");
+        Logger::println("[DevMode] Manual stop: all relays off.");
         stopAllRelays();
         _state = State::IDLE;
         _eventActive = false;
@@ -273,20 +274,20 @@ bool DosingController::triggerManualDose(const String &cmd, const SensorData &da
     }
 
     if (upper == "DEV STATUS") {
-        Serial.println("[DevMode] === DEV MODE STATUS ===");
-        Serial.printf("  Auto dosing  : DISABLED (DEV_MODE=1)\n");
-        Serial.printf("  State        : %s\n", getStateLabel());
-        Serial.printf("  Commands:\n");
-        Serial.printf("    DEV NUTRI    - Dose Nutrient A + B\n");
-        Serial.printf("    DEV PH UP    - Dose pH Up\n");
-        Serial.printf("    DEV PH DOWN  - Dose pH Down\n");
-        Serial.printf("    DEV STOP     - Stop all relays\n");
-        Serial.printf("    DEV STATUS   - Show this info\n");
-        Serial.println("[DevMode] ================================");
+        Logger::println("[DevMode] === DEV MODE STATUS ===");
+        Logger::printf("  Auto dosing  : DISABLED (DEV_MODE=1)\n");
+        Logger::printf("  State        : %s\n", getStateLabel());
+        Logger::printf("  Commands:\n");
+        Logger::printf("    DEV NUTRI    - Dose Nutrient A + B\n");
+        Logger::printf("    DEV PH UP    - Dose pH Up\n");
+        Logger::printf("    DEV PH DOWN  - Dose pH Down\n");
+        Logger::printf("    DEV STOP     - Stop all relays\n");
+        Logger::printf("    DEV STATUS   - Show this info\n");
+        Logger::println("[DevMode] ================================");
         return true;
     }
 
-    Serial.println("[DevMode] Unknown command. Type 'DEV STATUS' for help.");
+    Logger::println("[DevMode] Unknown command. Type 'DEV STATUS' for help.");
     return true;
 }
 
@@ -416,7 +417,7 @@ void DosingController::startEvent(const SensorData &data, const struct tm *local
         _activeReport.time = formatTime(*localTime);
     }
 
-    Serial.println("[Dosing] Auto dosing event started.");
+    Logger::println("[Dosing] Auto dosing event started.");
 }
 
 void DosingController::finalizeEvent(const SensorData &data, const char *reason) {
@@ -431,8 +432,8 @@ void DosingController::finalizeEvent(const SensorData &data, const char *reason)
     _pendingAction = Action::NONE;
     _cooldownUntilMs = millis() + AppConfig::AUTODOSE_EVENT_COOLDOWN_MS;
 
-    Serial.print("[Dosing] Auto dosing event completed: ");
-    Serial.println(reason);
+    Logger::print("[Dosing] Auto dosing event completed: ");
+    Logger::println(reason);
 }
 
 void DosingController::startNutrientDoseState(const char *label) {
@@ -445,8 +446,8 @@ void DosingController::startNutrientDoseState(const char *label) {
     _activeReport.nutrientAMl += deliveredMlForDuration(AppConfig::NUTRI_A_FLOW_ML_PER_SEC, durationMs);
     _activeReport.nutrientBMl += deliveredMlForDuration(AppConfig::NUTRI_B_FLOW_ML_PER_SEC, durationMs);
 
-    Serial.print("[Dosing] ");
-    Serial.println(label);
+    Logger::print("[Dosing] ");
+    Logger::println(label);
 }
 
 void DosingController::startRelayState(State nextState, uint8_t pin, float addedMl, const char *label) {
@@ -464,8 +465,8 @@ void DosingController::startRelayState(State nextState, uint8_t pin, float added
         _activeReport.phUpMl += addedMl;
     }
 
-    Serial.print("[Dosing] ");
-    Serial.println(label);
+    Logger::print("[Dosing] ");
+    Logger::println(label);
 }
 
 void DosingController::stopAllRelays() {

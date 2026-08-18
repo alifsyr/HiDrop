@@ -43,10 +43,3 @@ float TdsSensor::getTds() const {
 float TdsSensor::getKvalue() {
     return _gravityTds.getKvalue();
 }
-
-SensorData TdsSensor::getData(float temperatureC) const {
-    SensorData data;
-    data.temperatureC = temperatureC;
-    data.tds = _lastTds;
-    return data;
-}

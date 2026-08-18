@@ -76,8 +76,8 @@ FILE_ENV = load_env_values()
 
 env.Append(
     CPPDEFINES=[
-        ("APP_WIFI_SSID", quote_cpp_string(get_value("WIFI_SSID"))),
-        ("APP_WIFI_PASSWORD", quote_cpp_string(get_value("WIFI_PASSWORD"))),
+        ("APP_FIREBASE_HOST", quote_cpp_string(get_value("FIREBASE_HOST"))),
+        ("APP_FIREBASE_AUTH", quote_cpp_string(get_value("FIREBASE_AUTH"))),
         ("APP_GOOGLE_SHEETS_WEB_APP_URL", quote_cpp_string(get_value("GOOGLE_SHEETS_WEB_APP_URL"))),
         ("APP_GOOGLE_SHEETS_SHARED_SECRET", quote_cpp_string(get_value("GOOGLE_SHEETS_SHARED_SECRET"))),
         ("APP_GOOGLE_SHEETS_LOGGING_ENABLED", as_bool_literal(get_value("GOOGLE_SHEETS_LOGGING_ENABLED", "false"))),
