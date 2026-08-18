@@ -3,6 +3,7 @@
 #include <HTTPClient.h>
 #include <HTTPUpdate.h>
 #include <ArduinoJson.h>
+#include <esp_task_wdt.h>
 
 OtaUpdater::OtaUpdater(const String& repoOwner, const String& repoName) 
     : _repoOwner(repoOwner), _repoName(repoName), 
@@ -136,6 +137,7 @@ bool OtaUpdater::startUpdateFromUrl(const String& url, ProgressCallback progress
     int lastReportedPct = -1;
     if (progressCb) {
         httpUpdate.onProgress([progressCb, &lastReportedPct](int current, int total) {
+            esp_task_wdt_reset(); // Feed WDT during long downloads
             if (total <= 0) return;
             int pct = (current * 100) / total;
             // Only report on significant changes to avoid flooding Firebase

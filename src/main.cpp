@@ -20,6 +20,7 @@
 
 #include <ESPAsyncWebServer.h>
 #include <WebSerial.h>
+#include <esp_task_wdt.h>
 
 AsyncWebServer server(80);
 
@@ -136,6 +137,19 @@ void setup() {
   WebSerial.onMessage(recvMsg);
   server.begin();
 
+  // Enable Watchdog Timer after WiFi/AP Portal is resolved
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+  esp_task_wdt_config_t twdt_config = {
+      .timeout_ms = AppConfig::WDT_TIMEOUT_MS,
+      .idle_core_mask = (1 << portNUM_PROCESSORS) - 1,
+      .trigger_panic = true,
+  };
+  esp_task_wdt_init(&twdt_config);
+#else
+  esp_task_wdt_init(AppConfig::WDT_TIMEOUT_MS / 1000, true);
+#endif
+  esp_task_wdt_add(NULL);
+
   Serial.println();
 
 #if DEV_MODE
@@ -148,6 +162,8 @@ void setup() {
 }
 
 void loop() {
+  esp_task_wdt_reset();
+
   static char serialCommandBuffer[96];
   static size_t serialCommandLength = 0;
 
