@@ -519,11 +519,14 @@
         progressPct.textContent = '0%';
 
         // Step 3: Listen to ESP32 progress via Firebase
+        let successHandled = false;
         const unsubOta = onValue(ref(db, 'hydroponic/status/device'), (snap) => {
           const d = snap.val();
           if (!d) return;
           const otaStatus = d.ota_status || '';
           const pct = d.ota_progress || 0;
+
+          if (successHandled) return;
 
           if (otaStatus === 'downloading' && pct < 100) {
             progressBar.style.width = pct + '%';
@@ -531,23 +534,25 @@
             status.textContent = `Downloading firmware... ${pct}%`;
             status.style.color = 'var(--warn)';
           } else if (otaStatus === 'failed') {
-            status.textContent = '✗ Update failed. Check Serial Monitor.';
+            status.textContent = '✗ Update gagal. Cek Serial Monitor.';
             status.style.color = 'var(--danger)';
             btn.disabled = false;
             btn.textContent = 'Install Update & Restart';
             unsubOta();
-          } else if (pct === 100 || otaStatus === '') {
-            // Device rebooted and cleared status — assume success
-            if (pct === 100) {
-              progressBar.style.width = '100%';
-              progressPct.textContent = '100%';
-              status.textContent = '✓ Update berhasil! Device sedang restart... (Auto reload dalam 15d)';
-              status.style.color = 'var(--ok)';
-              unsubOta();
-              setTimeout(() => {
-                window.location.reload();
-              }, 15000);
-            }
+          } else if (pct === 100 || (otaStatus === '' && pct === 0 && progressBar.style.width !== '0%')) {
+            // pct===100: download complete before reboot
+            // otaStatus==='' && pct===0: device already rebooted and cleared the field (success)
+            successHandled = true;
+            progressBar.style.width = '100%';
+            progressPct.textContent = '100%';
+            btn.disabled = true;
+            btn.textContent = 'Update Berhasil ✓';
+            status.textContent = '✓ Update berhasil! Device sedang restart... (Auto reload dalam 15 detik)';
+            status.style.color = 'var(--ok)';
+            unsubOta();
+            setTimeout(() => {
+              window.location.reload();
+            }, 15000);
           }
         });
 
