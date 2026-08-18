@@ -24,8 +24,7 @@
 | **Sensor Monitoring** | TDS (PPM), pH, and water temperature via DS18B20 |
 | **Auto-Dosing** | Automatic nutrient A+B, pH Up/Down pump control |
 | **Display** | 20×4 LCD with split layout — sensors left, farm info right |
-| **Web Dashboard** | Local web UI at `http://ESP32_IP/` with live charts |
-| **REST API** | JSON endpoints for status, history, and dosing reports |
+| **Web Dashboard** | Cloud web UI hosted on GitHub Pages with live charts |
 | **Firebase** | Real-time sync, remote command, and OTA trigger via RTDB |
 | **OTA Updates** | Firmware update via GitHub Releases or Firebase-triggered URL |
 | **WebSerial** | Browser-based serial monitor and command interface |
@@ -123,7 +122,8 @@ After a successful Wi-Fi connection, the IP address of the dashboard is printed 
 WiFi Connected! IP Address: 192.168.1.50
 ```
 
-Open `http://192.168.1.50/` in a browser to access the dashboard.
+Open `https://alifsyr.github.io/HiDrop/` in a browser to access the dashboard.
+To access the local WebSerial monitor, open `http://<ESP32_IP>/webserial` (e.g. `http://192.168.1.50/webserial`).
 
 ---
 
@@ -162,54 +162,20 @@ After each dosing cycle, the system waits for a configurable **mixing delay** be
 
 ---
 
-## 🌐 Web Dashboard & API Reference
+## 🌐 Web Dashboard
 
-The embedded web dashboard is served directly from the ESP32.
+The web dashboard is hosted on GitHub Pages and connects directly to the Firebase Realtime Database. 
 
-**Dashboard:** `http://ESP32_IP/`
+**Dashboard URL:** `https://alifsyr.github.io/HiDrop/`
 
-### Endpoints
+The dashboard allows you to:
+- Monitor live sensors (pH, PPM, Temperature)
+- View historical charts
+- View recent dosing activity reports
+- Trigger Over-The-Air (OTA) updates remotely
+- Send target range configurations to the device
 
-| Endpoint | Method | Description |
-|---|---|---|
-| `/api/status` | GET | Live device, sensor, target, and dosing snapshot |
-| `/api/history` | GET | Historical pH and PPM chart data samples |
-| `/api/reports` | GET | Latest dosing event log |
-| `/webserial` | GET | Browser-based serial monitor (WebSerial UI) |
-
-### `GET /api/status` — Example Response
-
-```json
-{
-  "device": {
-    "wifi_connected": true,
-    "ip_address": "192.168.1.50",
-    "time_valid": true,
-    "date": "2026-03-30",
-    "time": "15:12:08",
-    "uptime_seconds": 5432
-  },
-  "sensor": {
-    "temperature_c": 25.12,
-    "ppm": 712,
-    "ph_voltage": 1.324,
-    "ph": 6.01,
-    "mode": "MONITOR",
-    "calibration_mode": false
-  },
-  "targets": {
-    "ph_min": 5.8,
-    "ph_max": 6.2,
-    "ppm_min": 600,
-    "ppm_max": 800
-  },
-  "dosing": {
-    "busy": false,
-    "state": "Monitoring",
-    "display_mode": "NORMAL"
-  }
-}
-```
+The ESP32 no longer serves the dashboard locally to save memory and improve performance. Instead, it only serves the WebSerial interface at `http://ESP32_IP/webserial`.
 
 ---
 
@@ -292,7 +258,7 @@ include/
 
 | Library | Purpose |
 |---|---|
-| `ESPAsyncWebServer` | Async HTTP server for dashboard and API |
+| `ESPAsyncWebServer` | Async HTTP server for WebSerial |
 | `WebSerial` | Browser-based serial terminal |
 | `Firebase Arduino Client` | Firebase RTDB client |
 | `DallasTemperature` / `OneWire` | DS18B20 temperature sensor |
