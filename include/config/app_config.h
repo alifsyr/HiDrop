@@ -1,13 +1,14 @@
+
 #pragma once
 
 #include <stdint.h>
 
-#ifndef APP_WIFI_SSID
-#define APP_WIFI_SSID ""
+#ifndef APP_FIREBASE_HOST
+#define APP_FIREBASE_HOST ""
 #endif
 
-#ifndef APP_WIFI_PASSWORD
-#define APP_WIFI_PASSWORD ""
+#ifndef APP_FIREBASE_AUTH
+#define APP_FIREBASE_AUTH ""
 #endif
 
 #ifndef APP_GOOGLE_SHEETS_WEB_APP_URL
@@ -33,7 +34,6 @@ namespace AppConfig {
     constexpr float DEFAULT_WATER_TEMPERATURE_C = 25.0f;
 
     constexpr int PH_SAMPLE_COUNT = 10;
-    constexpr unsigned long SENSOR_PRINT_INTERVAL_MS = 1000;
 
     constexpr float TDS_SMOOTHING_ALPHA = 0.15f;
     constexpr float PH_SLOPE = -5.70f;
@@ -87,33 +87,19 @@ namespace AppConfig {
     constexpr unsigned long LCD_TARGET_MESSAGE_DURATION_MS = 3000;
     constexpr uint8_t LCD_SCROLL_GAP_CHARS = 3;
 
-    // Wi-Fi + NTP (WIB / UTC+7)
-    constexpr char WIFI_SSID[] = APP_WIFI_SSID;
-    constexpr char WIFI_PASSWORD[] = APP_WIFI_PASSWORD;
+    // NTP (WIB / UTC+7)
     constexpr char NTP_SERVER_PRIMARY[] = "pool.ntp.org";
     constexpr char NTP_SERVER_SECONDARY[] = "time.nist.gov";
     constexpr long WIB_UTC_OFFSET_SECONDS = 7L * 60L * 60L;
-    constexpr unsigned long WIFI_RECONNECT_INTERVAL_MS = 10000;
 
-    // Firebase Realtime Database
+    // Firebase Realtime Database (credentials loaded from .env via load_env.py)
     constexpr bool FIREBASE_ENABLED = true;
-    #ifndef APP_FIREBASE_HOST
-    #define APP_FIREBASE_HOST "hidrop0n1c-default-rtdb.asia-southeast1.firebasedatabase.app"
-    #endif
-    #ifndef APP_FIREBASE_AUTH
-    #define APP_FIREBASE_AUTH "FKrkYE9JAGyUJQ3a2ZzXAEh4mSzUjIk4WsxntOIX"
-    #endif
     constexpr char FIREBASE_HOST[] = APP_FIREBASE_HOST;
     constexpr char FIREBASE_AUTH[] = APP_FIREBASE_AUTH;
     constexpr unsigned long FIREBASE_UPDATE_INTERVAL_MS = 5000;
 
-    // Web dashboard
-    constexpr bool WEB_DASHBOARD_ENABLED = false;
-    constexpr uint16_t WEB_SERVER_PORT = 80;
-    constexpr char WEB_DASHBOARD_TITLE[] = "Hydroponic Monitor";
-    constexpr unsigned long WEB_DASHBOARD_REFRESH_INTERVAL_MS = 5000;
+    // History sampling interval (used by firebase_client to sample sensor history)
     constexpr unsigned long WEB_DASHBOARD_HISTORY_SAMPLE_INTERVAL_MS = 15000;
-    constexpr unsigned long WEB_DASHBOARD_REPORTS_REFRESH_INTERVAL_MS = 30000;
 
     // Google Sheets logging
     constexpr bool GOOGLE_SHEETS_LOGGING_ENABLED = APP_GOOGLE_SHEETS_LOGGING_ENABLED;

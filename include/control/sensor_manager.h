@@ -21,8 +21,6 @@ public:
 
     bool isCalibrationMode() const;
     SensorData getSensorData() const;
-    float getPh() const;
-    float getTemperatureC() const;
     const char *getMode() const;
 
 private:

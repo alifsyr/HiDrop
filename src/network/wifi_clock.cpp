@@ -18,13 +18,19 @@ void saveConfigCallback() {
 }
 }
 
-WifiClock::WifiClock(const char *ssid, const char *password)
-    : _ssid(ssid),
-      _password(password),
-      _timeConfigured(false) {
+WifiClock::WifiClock()
+    : _timeConfigured(false) {
     memset(_staticIp, 0, sizeof(_staticIp));
     memset(_staticGw, 0, sizeof(_staticGw));
     memset(_staticSn, 0, sizeof(_staticSn));
+}
+
+WifiClock::~WifiClock() {
+    delete _paramIp;
+    delete _paramGw;
+    delete _paramSn;
+    delete _wm;
+    delete _dns;
 }
 
 void WifiClock::loadStaticIpConfig() {

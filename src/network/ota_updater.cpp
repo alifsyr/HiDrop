@@ -19,18 +19,13 @@ void OtaUpdater::update(bool forceCheck) {
     unsigned long now = millis();
     if (now == 0) now = 1;
 
-    // Check every 12 hours (43200000 ms)
-    if (_lastCheckMs == 0) {
-        _lastCheckMs = now; // Initialize the timer on first connect
-    }
-
-    // Wait 10 seconds after boot/connect before doing the first OTA check 
+    // Wait 10 seconds after boot before doing the first OTA check
     // to avoid blocking the main loop while LCD is showing "WiFi connecting".
-    if (!forceCheck && (now - _lastCheckMs < 10000)) {
+    if (!forceCheck && now < 10000) {
         return;
     }
 
-    if (forceCheck || (now - _lastCheckMs) > 43200000UL) {
+    if (forceCheck || _lastCheckMs == 0 || (now - _lastCheckMs) > 43200000UL) {
         _lastCheckMs = now;
         checkForUpdate();
     }

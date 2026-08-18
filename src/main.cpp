@@ -47,7 +47,7 @@ SensorManager sensorManager(tdsSensor, phSensor, tempSensor,
 
 LcdDisplay lcdDisplay(AppConfig::LCD_I2C_ADDRESS, AppConfig::LCD_COLUMNS,
                       AppConfig::LCD_ROWS);
-WifiClock wifiClock(AppConfig::WIFI_SSID, AppConfig::WIFI_PASSWORD);
+WifiClock wifiClock;
 DosingController dosingController;
 GoogleSheetsLogger sheetsLogger;
 FirebaseClient firebaseClient;

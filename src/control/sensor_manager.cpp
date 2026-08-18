@@ -105,13 +105,6 @@ SensorData SensorManager::getSensorData() const {
     return data;
 }
 
-float SensorManager::getPh() const {
-    return _phValue;
-}
-
-float SensorManager::getTemperatureC() const {
-    return _temperatureC;
-}
 
 const char *SensorManager::getMode() const {
     switch (_mode) {

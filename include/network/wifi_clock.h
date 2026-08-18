@@ -11,7 +11,8 @@
 
 class WifiClock {
 public:
-    WifiClock(const char *ssid, const char *password);
+    WifiClock();
+    ~WifiClock();
 
     void begin();
     void update();
@@ -29,21 +30,19 @@ private:
     void loadStaticIpConfig();
     void saveStaticIpConfig();
 
-    const char *_ssid;
-    const char *_password;
     bool _timeConfigured;
     
-    AsyncWiFiManager* _wm;
-    DNSServer* _dns;
+    AsyncWiFiManager* _wm = nullptr;
+    DNSServer* _dns = nullptr;
     Preferences _prefs;
 
     char _staticIp[16];
     char _staticGw[16];
     char _staticSn[16];
     
-    AsyncWiFiManagerParameter* _paramIp;
-    AsyncWiFiManagerParameter* _paramGw;
-    AsyncWiFiManagerParameter* _paramSn;
+    AsyncWiFiManagerParameter* _paramIp = nullptr;
+    AsyncWiFiManagerParameter* _paramGw = nullptr;
+    AsyncWiFiManagerParameter* _paramSn = nullptr;
 
     std::function<void()> _apCallback;
 };

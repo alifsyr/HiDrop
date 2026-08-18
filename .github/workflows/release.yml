@@ -5,12 +5,12 @@ on:
     branches:
       - master
       - main
-    paths-ignore:
-      - 'docs/**'
-      - 'README.md'
-      - 'LICENSE'
-      - 'image/**'
-      - '.gitignore'
+    paths:
+      - 'src/**'
+      - 'include/**'
+      - 'lib/**'
+      - 'platformio.ini'
+      - 'scripts/**'
 
 permissions:
   contents: write

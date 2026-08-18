@@ -23,7 +23,7 @@ int PhSensor::getMedianAverageRaw() {
 
     for (int i = 0; i < _sampleCount; i++) {
         buffer[i] = analogRead(_pin);
-        delay(30);
+        delay(10); // Short delay for ADC stability; 10 samples * 10ms = 100ms total
     }
 
     for (int i = 0; i < _sampleCount - 1; i++) {
