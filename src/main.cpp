@@ -114,7 +114,10 @@ void setup() {
   dosingController.begin();
   sheetsLogger.begin();
   firebaseClient.setCommandCallback(
-      [](const String &cmd) { return targetRangeManager.handleCommand(cmd); });
+      [](const String &cmd) { 
+          processCommand(cmd); 
+          return true; 
+      });
   firebaseClient.setAutoDoseToggleCallback(
       [](bool enabled) { dosingController.setAutoDosingEnabled(enabled); });
   firebaseClient.setOtaTriggerCallback(
