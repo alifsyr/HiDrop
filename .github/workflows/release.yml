@@ -53,19 +53,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install --upgrade platformio
 
-      - name: Build Firmware
-        # Pass FIRMWARE_VERSION and Firebase credentials as env vars.
-        # load_env.py reads FIREBASE_HOST and FIREBASE_AUTH from the environment
-        # when no .env file is present (CI environment).
-        env:
-          PLATFORMIO_BUILD_FLAGS: -DFIRMWARE_VERSION=\"1.0.${{ github.run_number }}\"
-          FIREBASE_HOST: ${{ secrets.FIREBASE_HOST }}
-          FIREBASE_AUTH: ${{ secrets.FIREBASE_AUTH }}
-          GOOGLE_SHEETS_LOGGING_ENABLED: ${{ secrets.GOOGLE_SHEETS_LOGGING_ENABLED }}
-          GOOGLE_SHEETS_WEB_APP_URL: ${{ secrets.GOOGLE_SHEETS_WEB_APP_URL }}
-          GOOGLE_SHEETS_SHARED_SECRET: ${{ secrets.GOOGLE_SHEETS_SHARED_SECRET }}
-        run: pio run -e esp32dev
-
       - name: Get Version info
         id: version
         run: |
@@ -80,6 +67,16 @@ jobs:
             echo "IS_PRERELEASE=true" >> $GITHUB_OUTPUT
             echo "IS_RELEASE_EVENT=false" >> $GITHUB_OUTPUT
           fi
+
+      - name: Build Firmware
+        env:
+          PLATFORMIO_BUILD_FLAGS: -DFIRMWARE_VERSION=\"${{ steps.version.outputs.VERSION }}\"
+          FIREBASE_HOST: ${{ secrets.FIREBASE_HOST }}
+          FIREBASE_AUTH: ${{ secrets.FIREBASE_AUTH }}
+          GOOGLE_SHEETS_LOGGING_ENABLED: ${{ secrets.GOOGLE_SHEETS_LOGGING_ENABLED }}
+          GOOGLE_SHEETS_WEB_APP_URL: ${{ secrets.GOOGLE_SHEETS_WEB_APP_URL }}
+          GOOGLE_SHEETS_SHARED_SECRET: ${{ secrets.GOOGLE_SHEETS_SHARED_SECRET }}
+        run: pio run -e esp32dev
 
       - name: Create or Update Release
         id: create_release

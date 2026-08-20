@@ -612,6 +612,10 @@
           
           try {
             await set(ref(db, 'hydroponic/commands/dosing_enabled'), checkbox.checked);
+            // Allow onValue listener to process the update
+            statusText.textContent = checkbox.checked ? "Active" : "Inactive";
+            statusText.style.color = checkbox.checked ? "var(--primary)" : "var(--muted)";
+            checkbox.disabled = false;
           } catch (error) {
             statusText.textContent = 'Error updating';
             statusText.style.color = 'var(--danger)';
