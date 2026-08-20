@@ -1,0 +1,51 @@
+name: "CodeQL Security Scan"
+
+on:
+  push:
+    branches: [ "master", "main", "development" ]
+  pull_request:
+    branches: [ "master", "main", "development" ]
+  schedule:
+    - cron: '30 1 * * 0'
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ 'cpp', 'javascript' ]
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v4
+      with:
+        languages: ${{ matrix.language }}
+
+    - name: Set up Python
+      if: matrix.language == 'cpp'
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install PlatformIO
+      if: matrix.language == 'cpp'
+      run: |
+        python -m pip install --upgrade pip
+        pip install --upgrade platformio
+
+    - name: Build C++ Code
+      if: matrix.language == 'cpp'
+      run: pio run -e esp32dev
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v4
