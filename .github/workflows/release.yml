@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Cache pip
         uses: actions/cache@v4
@@ -44,7 +44,7 @@ jobs:
             ${{ runner.os }}-platformio-
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.11'
 
@@ -83,7 +83,7 @@ jobs:
 
       - name: Create or Update Release
         id: create_release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           # If it's a release event, we don't need to specify tag_name and name since it's already created.
           # We just upload the files to the current event's release.
