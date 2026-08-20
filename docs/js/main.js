@@ -4,6 +4,7 @@
 
     let isEditingTargets = false;
     let editingTimer = null;
+    let isUpdatingAutoDose = false;
 
     const firebaseConfig = {
       apiKey: "AIzaSyDWsj_Z0CHJsdG9wlDrv_9o1evizNLUv3M",
@@ -292,7 +293,7 @@
       const autoDoseStatusText = document.getElementById('autoDoseStatusText');
       if (data?.dosing && data.dosing.hasOwnProperty('auto_dosing_enabled')) {
         autoDoseToggle.disabled = false;
-        if (autoDoseStatusText.textContent !== "Updating...") {
+        if (!isUpdatingAutoDose) {
           autoDoseToggle.checked = data.dosing.auto_dosing_enabled;
           autoDoseStatusText.textContent = data.dosing.auto_dosing_enabled ? "ON (Automated)" : "OFF (Manual)";
           autoDoseStatusText.style.color = data.dosing.auto_dosing_enabled ? "var(--ok)" : "var(--warn)";
@@ -606,21 +607,23 @@
         async () => {
           // ON CONFIRM
           const statusText = document.getElementById('autoDoseStatusText');
+          isUpdatingAutoDose = true;
           statusText.textContent = "Updating...";
           statusText.style.color = "var(--muted)";
           checkbox.disabled = true;
           
           try {
             await set(ref(db, 'hydroponic/commands/dosing_enabled'), checkbox.checked);
-            // Allow onValue listener to process the update
-            statusText.textContent = checkbox.checked ? "Active" : "Inactive";
-            statusText.style.color = checkbox.checked ? "var(--primary)" : "var(--muted)";
+            statusText.textContent = checkbox.checked ? "ON (Automated)" : "OFF (Manual)";
+            statusText.style.color = checkbox.checked ? "var(--ok)" : "var(--warn)";
             checkbox.disabled = false;
           } catch (error) {
             statusText.textContent = 'Error updating';
             statusText.style.color = 'var(--danger)';
             checkbox.checked = !checkbox.checked; // Revert
             checkbox.disabled = false;
+          } finally {
+            isUpdatingAutoDose = false;
           }
         },
         () => {
