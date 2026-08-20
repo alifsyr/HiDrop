@@ -1,0 +1,84 @@
+name-template: 'Firmware Update v$RESOLVED_VERSION'
+tag-template: 'v$RESOLVED_VERSION'
+categories:
+  - title: '🚀 Fitur Baru (Features)'
+    labels:
+      - 'feat'
+      - 'feature'
+      - 'enhancement'
+  - title: '🐛 Perbaikan Bug (Bug Fixes)'
+    labels:
+      - 'fix'
+      - 'bugfix'
+      - 'bug'
+  - title: '📝 Dokumentasi (Documentation)'
+    labels:
+      - 'docs'
+      - 'documentation'
+  - title: '🔧 Pemeliharaan (Maintenance & Refactor)'
+    labels:
+      - 'chore'
+      - 'refactor'
+      - 'style'
+      - 'ci'
+      - 'build'
+      - 'test'
+      - 'perf'
+change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
+change-title-escapes: '\<*_&' # You can add # and @ to disable mentions, and add ` to disable code blocks.
+version-resolver:
+  major:
+    labels:
+      - 'BREAKING CHANGE'
+      - 'major'
+  minor:
+    labels:
+      - 'feat'
+      - 'feature'
+      - 'enhancement'
+      - 'minor'
+  patch:
+    labels:
+      - 'fix'
+      - 'bugfix'
+      - 'bug'
+      - 'chore'
+      - 'refactor'
+      - 'style'
+      - 'ci'
+      - 'build'
+      - 'test'
+      - 'perf'
+      - 'docs'
+      - 'patch'
+  default: patch
+template: |
+  ## Perubahan Terbaru dalam Rilis Ini
+  $CHANGES
+
+  **Full Changelog**: https://github.com/$OWNER/$REPOSITORY/compare/$PREVIOUS_TAG...v$RESOLVED_VERSION
+
+autolabeler:
+  - label: 'feat'
+    branch:
+      - '/^feat\/.*/'
+    title:
+      - '/^feat: .*/'
+  - label: 'fix'
+    branch:
+      - '/^fix\/.*/'
+    title:
+      - '/^fix: .*/'
+  - label: 'docs'
+    title:
+      - '/^docs: .*/'
+  - label: 'chore'
+    title:
+      - '/^chore: .*/'
+  - label: 'refactor'
+    title:
+      - '/^refactor: .*/'
+  - label: 'BREAKING CHANGE'
+    title:
+      - '/.*!: .*/'
+      - '/^BREAKING CHANGE: .*/'
