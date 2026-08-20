@@ -1,12 +1,13 @@
-
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Hydroponic Monitor (Cloud)</title>
+  <title>Dashboard Hydroponic Monitor</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
+
 <body>
   <main class="shell">
     <section class="hero">
@@ -16,18 +17,22 @@
             <span id="wifiDot" class="dot"></span>
             <span id="heroStatus">Connecting to device...</span>
           </div>
-          <h1>Hydroponic Monitor (Cloud)</h1>
+          <h1>Dashboard Hydroponic Monitor</h1>
           <p class="subhead">
-            Dashboard live untuk pH, PPM, suhu air, status auto dosing, dan histori singkat aktivitas terakhir dari ESP32.
+            Dashboard live untuk pH, PPM, suhu air, status auto dosing, dan histori singkat aktivitas terakhir dari
+            ESP32.
           </p>
         </div>
         <div style="display: flex; gap: 14px; align-items: start;">
-          <button id="otaBellBtn" onclick="openOtaModal()" style="position: relative; background: rgba(255,255,255,0.74); border: 1px solid rgba(19, 52, 43, 0.07); padding: 18px; border-radius: 20px; cursor: pointer; transition: background 0.2s; backdrop-filter: blur(8px);">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <button id="otaBellBtn" onclick="openOtaModal()"
+            style="position: relative; background: rgba(255,255,255,0.74); border: 1px solid rgba(19, 52, 43, 0.07); padding: 18px; border-radius: 20px; cursor: pointer; transition: background 0.2s; backdrop-filter: blur(8px);">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
               <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
             </svg>
-            <span id="otaBadge" style="display: none; position: absolute; top: 12px; right: 12px; width: 10px; height: 10px; background: #b42318; border-radius: 50%; box-shadow: 0 0 0 3px rgba(255,255,255,0.8);"></span>
+            <span id="otaBadge"
+              style="display: none; position: absolute; top: 12px; right: 12px; width: 10px; height: 10px; background: #b42318; border-radius: 50%; box-shadow: 0 0 0 3px rgba(255,255,255,0.8);"></span>
           </button>
           <div class="stat">
             <p class="label">Last Refresh</p>
@@ -106,10 +111,13 @@
             <div class="range-slider">
               <div class="range-slider-track"></div>
               <div class="range-slider-progress" id="phProgress"></div>
-              <input type="range" id="phMinSlider" min="4.0" max="9.0" step="0.1" value="5.8" oninput="updateDualSlider(this, 'ph')" onchange="saveTarget('ph')">
-              <input type="range" id="phMaxSlider" min="4.0" max="9.0" step="0.1" value="6.2" oninput="updateDualSlider(this, 'ph')" onchange="saveTarget('ph')">
+              <input type="range" id="phMinSlider" min="4.0" max="9.0" step="0.1" value="5.8"
+                oninput="updateDualSlider(this, 'ph')" onchange="saveTarget('ph')">
+              <input type="range" id="phMaxSlider" min="4.0" max="9.0" step="0.1" value="6.2"
+                oninput="updateDualSlider(this, 'ph')" onchange="saveTarget('ph')">
             </div>
-            <div id="phSaveStatus" style="margin-top: 8px; font-size: 0.85rem; color: var(--ok); display: none;">Saved!</div>
+            <div id="phSaveStatus" style="margin-top: 8px; font-size: 0.85rem; color: var(--ok); display: none;">Saved!
+            </div>
           </div>
         </div>
         <div>
@@ -121,10 +129,13 @@
             <div class="range-slider">
               <div class="range-slider-track"></div>
               <div class="range-slider-progress" id="ppmProgress"></div>
-              <input type="range" id="ppmMinSlider" min="500" max="4000" step="50" value="600" oninput="updateDualSlider(this, 'ppm')" onchange="saveTarget('ppm')">
-              <input type="range" id="ppmMaxSlider" min="500" max="4000" step="50" value="800" oninput="updateDualSlider(this, 'ppm')" onchange="saveTarget('ppm')">
+              <input type="range" id="ppmMinSlider" min="500" max="4000" step="50" value="600"
+                oninput="updateDualSlider(this, 'ppm')" onchange="saveTarget('ppm')">
+              <input type="range" id="ppmMaxSlider" min="500" max="4000" step="50" value="800"
+                oninput="updateDualSlider(this, 'ppm')" onchange="saveTarget('ppm')">
             </div>
-            <div id="ppmSaveStatus" style="margin-top: 8px; font-size: 0.85rem; color: var(--ok); display: none;">Saved!</div>
+            <div id="ppmSaveStatus" style="margin-top: 8px; font-size: 0.85rem; color: var(--ok); display: none;">Saved!
+            </div>
           </div>
         </div>
       </div>
@@ -138,12 +149,14 @@
     </section>
 
     <!-- OTA Modal -->
-    <div id="otaModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+    <div id="otaModal"
+      style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
       <div class="panel" style="max-width: 420px; width: 90%; position: relative;">
-        <button onclick="closeOtaModal()" style="position: absolute; right: 16px; top: 16px; background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--muted);">&times;</button>
+        <button onclick="closeOtaModal()"
+          style="position: absolute; right: 16px; top: 16px; background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--muted);">&times;</button>
         <h2>Firmware Update</h2>
         <p class="subhead" style="margin-bottom: 20px;">Check for the latest updates from GitHub.</p>
-        
+
         <div style="margin-bottom: 12px;">
           <span class="label">Current Version:</span>
           <span class="value" style="font-size: 1.2rem;" id="otaCurrentVer">-</span>
@@ -156,18 +169,24 @@
         <!-- Progress bar (hidden until OTA starts) -->
         <div id="otaProgressWrap" style="display: none; margin-bottom: 16px;">
           <div style="background: var(--accent-soft); border-radius: 999px; height: 10px; overflow: hidden;">
-            <div id="otaProgressBar" style="height: 100%; width: 0%; background: var(--accent); border-radius: 999px; transition: width 0.4s ease;"></div>
+            <div id="otaProgressBar"
+              style="height: 100%; width: 0%; background: var(--accent); border-radius: 999px; transition: width 0.4s ease;">
+            </div>
           </div>
-          <div id="otaProgressPct" style="text-align: center; font-size: 0.85rem; margin-top: 6px; color: var(--muted);">0%</div>
+          <div id="otaProgressPct"
+            style="text-align: center; font-size: 0.85rem; margin-top: 6px; color: var(--muted);">0%</div>
         </div>
-        
-        <button id="otaStartBtn" class="btn" style="display: none;" onclick="startOtaUpdate()">Install Update &amp; Restart</button>
-        <div id="otaStatusText" style="margin-top: 12px; font-size: 0.9rem; text-align: center; color: var(--muted);"></div>
+
+        <button id="otaStartBtn" class="btn" style="display: none;" onclick="startOtaUpdate()">Install Update &amp;
+          Restart</button>
+        <div id="otaStatusText" style="margin-top: 12px; font-size: 0.9rem; text-align: center; color: var(--muted);">
+        </div>
       </div>
     </div>
   </main>
 
-  
+
   <script type="module" src="js/main.js"></script>
 </body>
+
 </html>

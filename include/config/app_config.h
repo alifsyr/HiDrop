@@ -57,6 +57,9 @@ namespace AppConfig {
     // Relay behavior
     constexpr bool RELAY_ACTIVE_LOW = true;
 
+    // Watchdog Timer
+    constexpr uint32_t WDT_TIMEOUT_MS = 30000;
+
     // Pump calibration defaults
     // Calibrate each pump on the real system before production use.
     constexpr float NUTRI_A_FLOW_ML_PER_SEC = 0.25f;

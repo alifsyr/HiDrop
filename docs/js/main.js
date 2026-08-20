@@ -268,9 +268,9 @@
           }
       }
       
-      // If we received an update in the last 65 seconds, it is online
+      // If we received an update in the last 12 seconds (ESP32 sends every 5s), it is online
       const lastReceiveMs = window._lastReceiveMs || nowMs;
-      isOnline = (nowMs - lastReceiveMs) < 65000;
+      isOnline = (nowMs - lastReceiveMs) < 12000;
       
       // Determine what time to show on the UI
       let displayTimeMs = lastReceiveMs;
@@ -284,7 +284,7 @@
         ? "Device online and serving live telemetry"
         : "Device offline (showing last known state)";
       document.getElementById("wifiDot").classList.toggle("ok", isOnline);
-      document.getElementById("refreshedAt").textContent = new Date(displayTimeMs).toLocaleTimeString("id-ID", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      document.getElementById("refreshedAt").textContent = new Date(displayTimeMs).toLocaleString("id-ID", { timeZone: "Asia/Jakarta", day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
       document.getElementById("ipAddress").textContent = `IP: ${data?.device?.ip_address || "-"}`;
 
@@ -607,5 +607,5 @@
     
     setInterval(() => {
         if(latestStatus) applyStatus(latestStatus);
-    }, 5000);
+    }, 1000);
 
