@@ -13,6 +13,7 @@ class FirebaseClient {
 public:
     typedef std::function<bool(const String&)> CommandCallback;
     typedef std::function<void(const String& url, const String& version)> OtaTriggerCallback;
+    typedef std::function<void(bool)> AutoDoseToggleCallback;
 
     FirebaseClient();
 
@@ -25,6 +26,7 @@ public:
         DisplayMode displayMode,
         bool dosingBusy,
         const char *dosingState,
+        bool autoDosingEnabled,
         bool wifiConnected,
         const struct tm *localTime,
         bool timeValid
@@ -33,6 +35,7 @@ public:
     void addCompletedReport(const DosingReport &report);
     void setCommandCallback(CommandCallback cb);
     void setOtaTriggerCallback(OtaTriggerCallback cb);
+    void setAutoDoseToggleCallback(AutoDoseToggleCallback cb);
     void reportOtaStatus(const String& status, int progress);
 
 private:
@@ -46,6 +49,7 @@ private:
         DisplayMode displayMode = DisplayMode::NORMAL;
         bool dosingBusy = false;
         const char *dosingState = "Monitoring";
+        bool autoDosingEnabled = true;
         bool wifiConnected = false;
         bool timeValid = false;
         char date[16] = "N/A";
@@ -73,6 +77,7 @@ private:
     bool _wasWifiConnected;
     CommandCallback _commandCallback;
     OtaTriggerCallback _otaTriggerCallback;
+    AutoDoseToggleCallback _autoDoseToggleCallback;
 
     void addHistorySample(const SensorData &sensorData);
     void sendStatusToFirebase();

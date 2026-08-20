@@ -25,7 +25,8 @@ DosingController::DosingController()
       _cooldownUntilMs(0),
       _stateStartedMs(0),
       _nutrientCycles(0),
-      _phCycles(0) {}
+      _phCycles(0),
+      _autoDosingEnabled(true) {}
 
 void DosingController::begin() {
     pinMode(Pins::RELAY_NUTRI_A, OUTPUT);
@@ -58,6 +59,10 @@ void DosingController::update(
     // Use Serial commands to trigger manually.
     return;
 #endif
+
+    if (!_autoDosingEnabled && _state == State::IDLE) {
+        return;
+    }
 
     switch (_state) {
         case State::IDLE: {
@@ -119,6 +124,24 @@ void DosingController::update(
                 _state = State::WAITING_RECHECK;
                 _stateStartedMs = now;
                 Logger::println("[Dosing] Nutrient A + B dose complete. Waiting for solution mixing.");
+            }
+            return;
+
+        case State::DOSING_NUTRI_A:
+            if (now - _stateStartedMs >= doseDurationMs(AppConfig::NUTRI_A_DOSE_STEP_ML, AppConfig::NUTRI_A_FLOW_ML_PER_SEC)) {
+                setRelay(Pins::RELAY_NUTRI_A, false);
+                _state = State::WAITING_RECHECK;
+                _stateStartedMs = now;
+                Logger::println("[Dosing] Nutrient A dose complete. Waiting for solution mixing.");
+            }
+            return;
+
+        case State::DOSING_NUTRI_B:
+            if (now - _stateStartedMs >= doseDurationMs(AppConfig::NUTRI_B_DOSE_STEP_ML, AppConfig::NUTRI_B_FLOW_ML_PER_SEC)) {
+                setRelay(Pins::RELAY_NUTRI_B, false);
+                _state = State::WAITING_RECHECK;
+                _stateStartedMs = now;
+                Logger::println("[Dosing] Nutrient B dose complete. Waiting for solution mixing.");
             }
             return;
 
@@ -214,6 +237,23 @@ bool DosingController::isDevMode() const {
 #endif
 }
 
+void DosingController::setAutoDosingEnabled(bool enabled) {
+    if (_autoDosingEnabled == enabled) return;
+    _autoDosingEnabled = enabled;
+
+    if (!enabled && _state != State::IDLE) {
+        Logger::println("[Dosing] Auto dosing disabled globally. Aborting current operation.");
+        stopAllRelays();
+        _state = State::IDLE;
+        _eventActive = false;
+        _pendingAction = Action::NONE;
+    }
+}
+
+bool DosingController::isAutoDosingEnabled() const {
+    return _autoDosingEnabled;
+}
+
 // ---------------------------------------------------------------------------
 // Manual dose trigger (dev mode only)
 // Commands: DEV NUTRI | DEV PH UP | DEV PH DOWN
@@ -236,6 +276,32 @@ bool DosingController::triggerManualDose(const String &cmd, const SensorData &da
         startEvent(data, localTime, timeValid);
         _pendingAction = Action::DOSE_NUTRIENTS;
         startNutrientDoseState("[DevMode] Dosing Nutrient A + B together");
+        return true;
+    }
+
+    if (upper == "DEV NUTRI A") {
+        Logger::println("[DevMode] Manual trigger: Dosing Nutrient A");
+        startEvent(data, localTime, timeValid);
+        _pendingAction = Action::DOSE_NUTRI_A;
+        startRelayState(
+            State::DOSING_NUTRI_A,
+            Pins::RELAY_NUTRI_A,
+            AppConfig::NUTRI_A_DOSE_STEP_ML,
+            "[DevMode] Dosing Nutrient A"
+        );
+        return true;
+    }
+
+    if (upper == "DEV NUTRI B") {
+        Logger::println("[DevMode] Manual trigger: Dosing Nutrient B");
+        startEvent(data, localTime, timeValid);
+        _pendingAction = Action::DOSE_NUTRI_B;
+        startRelayState(
+            State::DOSING_NUTRI_B,
+            Pins::RELAY_NUTRI_B,
+            AppConfig::NUTRI_B_DOSE_STEP_ML,
+            "[DevMode] Dosing Nutrient B"
+        );
         return true;
     }
 
@@ -278,6 +344,8 @@ bool DosingController::triggerManualDose(const String &cmd, const SensorData &da
         Logger::printf("  Auto dosing  : DISABLED (DEV_MODE=1)\n");
         Logger::printf("  State        : %s\n", getStateLabel());
         Logger::printf("  Commands:\n");
+        Logger::printf("    DEV NUTRI A  - Dose Nutrient A\n");
+        Logger::printf("    DEV NUTRI B  - Dose Nutrient B\n");
         Logger::printf("    DEV NUTRI    - Dose Nutrient A + B\n");
         Logger::printf("    DEV PH UP    - Dose pH Up\n");
         Logger::printf("    DEV PH DOWN  - Dose pH Down\n");
@@ -294,6 +362,8 @@ bool DosingController::triggerManualDose(const String &cmd, const SensorData &da
 DisplayMode DosingController::getDisplayMode() const {
     switch (_state) {
         case State::DOSING_NUTRIENTS:
+        case State::DOSING_NUTRI_A:
+        case State::DOSING_NUTRI_B:
             return DisplayMode::NUTRI_AB;
 
         case State::DOSING_PH_DOWN:

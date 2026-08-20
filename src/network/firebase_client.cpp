@@ -40,6 +40,10 @@ void FirebaseClient::setOtaTriggerCallback(OtaTriggerCallback cb) {
     _otaTriggerCallback = cb;
 }
 
+void FirebaseClient::setAutoDoseToggleCallback(AutoDoseToggleCallback cb) {
+    _autoDoseToggleCallback = cb;
+}
+
 void FirebaseClient::reportOtaStatus(const String& status, int progress) {
     if (!AppConfig::FIREBASE_ENABLED || !Firebase.ready()) return;
     FirebaseJson json;
@@ -56,6 +60,7 @@ void FirebaseClient::update(
     DisplayMode displayMode,
     bool dosingBusy,
     const char *dosingState,
+    bool autoDosingEnabled,
     bool wifiConnected,
     const struct tm *localTime,
     bool timeValid
@@ -71,6 +76,7 @@ void FirebaseClient::update(
     _snapshot.displayMode = displayMode;
     _snapshot.dosingBusy = dosingBusy;
     _snapshot.dosingState = dosingState != nullptr ? dosingState : "Monitoring";
+    _snapshot.autoDosingEnabled = autoDosingEnabled;
     _snapshot.wifiConnected = wifiConnected;
     _snapshot.timeValid = timeValid;
     _snapshot.uptimeSeconds = millis() / 1000UL;
@@ -181,6 +187,7 @@ void FirebaseClient::sendStatusToFirebase() {
     json.set("dosing/busy", _snapshot.dosingBusy);
     json.set("dosing/state", _snapshot.dosingState);
     json.set("dosing/display_mode", displayModeLabel(_snapshot.displayMode));
+    json.set("dosing/auto_dosing_enabled", _snapshot.autoDosingEnabled);
     
     // Include timestamp to allow frontend to know if data is fresh
     json.set("timestamp", millis()); // Or absolute unix time if timeValid
@@ -267,6 +274,28 @@ void FirebaseClient::checkIncomingCommands() {
                 
                 // Clear the flag
                 Firebase.RTDB.setBool(&_fbdo, "/hydroponic/commands/targets/pending_update", false);
+            }
+        }
+    }
+    
+    // --- Check Auto Dosing Toggle command ---
+    if (Firebase.RTDB.getBool(&_fbdo2, "/hydroponic/commands/dosing_enabled")) {
+        bool enableCmd = _fbdo2.boolData();
+        if (_autoDoseToggleCallback) {
+            _autoDoseToggleCallback(enableCmd);
+        }
+    }
+
+    // --- Check Manual Pump Trigger command ---
+    if (Firebase.RTDB.getBool(&_fbdo2, "/hydroponic/commands/manual_trigger/pending")) {
+        if (_fbdo2.boolData() == true) {
+            if (Firebase.RTDB.getString(&_fbdo2, "/hydroponic/commands/manual_trigger/command")) {
+                String cmd = _fbdo2.stringData();
+                if (_commandCallback) {
+                    _commandCallback(cmd);
+                }
+                // Clear the flag
+                Firebase.RTDB.setBool(&_fbdo2, "/hydroponic/commands/manual_trigger/pending", false);
             }
         }
     }

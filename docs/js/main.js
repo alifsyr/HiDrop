@@ -1,5 +1,6 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getDatabase, ref, onValue, set, get, child } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+    import { plantData } from "./plants.js";
 
     let isEditingTargets = false;
     let editingTimer = null;
@@ -94,28 +95,24 @@
         return;
       }
 
-      const margin = { top: 16, right: 18, bottom: 34, left: 48 };
+      const margin = { top: 16, right: 18, bottom: 34, left: 56 };
       const width = 640;
       const height = 240;
       const chartWidth = width - margin.left - margin.right;
       const chartHeight = height - margin.top - margin.bottom;
 
-      let minValue = Math.min(...numericValues, Number(targetMin));
-      let maxValue = Math.max(...numericValues, Number(targetMax));
-      if (!Number.isFinite(minValue)) minValue = hardMin;
-      if (!Number.isFinite(maxValue)) maxValue = hardMax;
+      let minValue = hardMin;
+      let maxValue = hardMax;
 
-      const spread = Math.max(maxValue - minValue, digits === 2 ? 0.4 : 50);
-      minValue -= spread * 0.18;
-      maxValue += spread * 0.18;
-      minValue = Math.max(hardMin, minValue);
-      maxValue = Math.min(hardMax, maxValue);
       if (maxValue <= minValue) {
         maxValue = minValue + (digits === 2 ? 1 : 100);
       }
 
       const scaleX = (index) => margin.left + (index / (numericValues.length - 1)) * chartWidth;
-      const scaleY = (value) => margin.top + ((maxValue - value) / (maxValue - minValue)) * chartHeight;
+      const scaleY = (value) => {
+        const clampedValue = Math.max(minValue, Math.min(maxValue, value));
+        return margin.top + ((maxValue - clampedValue) / (maxValue - minValue)) * chartHeight;
+      };
       const chartPoints = numericValues.map((value, index) => ({ x: scaleX(index), y: scaleY(value), value }));
 
       const path = buildChartPath(chartPoints);
@@ -130,41 +127,31 @@
         const value = maxValue - ratio * (maxValue - minValue);
         return `
           <line x1="${margin.left}" y1="${y.toFixed(2)}" x2="${(margin.left + chartWidth).toFixed(2)}" y2="${y.toFixed(2)}" stroke="rgba(19,52,43,0.12)" stroke-dasharray="4 6"></line>
-          <text x="${margin.left - 10}" y="${(y + 4).toFixed(2)}" text-anchor="end" fill="#5f786d" font-size="11">${value.toFixed(digits)}</text>
+          <text x="${margin.left - 12}" y="${(y + 5).toFixed(2)}" text-anchor="end" fill="#5f786d" font-size="14" font-weight="500">${value.toFixed(digits)}</text>
         `;
       }).join("");
 
       const windowMs = Math.max(0, (numericValues.length - 1) * Math.max(0, Number(sampleIntervalMs) || 0));
-      const firstLabel = windowMs > 0 ? `-${formatDurationLabel(windowMs)}` : "Start";
+      const firstLabel = windowMs > 0 ? `${formatDurationLabel(windowMs)} ago` : "Start";
       const lastValue = numericValues[numericValues.length - 1];
 
       svg.innerHTML = `
         <rect x="0" y="0" width="${width}" height="${height}" rx="18" fill="rgba(13, 141, 119, 0.02)"></rect>
         ${grid}
-        <rect
-          x="${margin.left}"
-          y="${Math.min(bandTop, bandBottom).toFixed(2)}"
-          width="${chartWidth}"
-          height="${Math.abs(bandBottom - bandTop).toFixed(2)}"
-          fill="rgba(13, 141, 119, 0.10)">
-        </rect>
-        <path d="${areaPath}" fill="${color}" opacity="0.12"></path>
-        <path d="${path}" fill="none" stroke="${color}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></path>
-        ${chartPoints.map((point, index) => `
-          <circle
-            cx="${point.x.toFixed(2)}"
-            cy="${point.y.toFixed(2)}"
-            r="${index === chartPoints.length - 1 ? 5.5 : 3}"
-            fill="${index === chartPoints.length - 1 ? color : "#ffffff"}"
-            stroke="${color}"
-            stroke-width="2">
-          </circle>
-        `).join("")}
-        <text x="${margin.left}" y="${height - 10}" fill="#5f786d" font-size="11">${firstLabel}</text>
-        <text x="${(margin.left + chartWidth).toFixed(2)}" y="${height - 10}" text-anchor="end" fill="#5f786d" font-size="11">${lastLabel || "Now"}</text>
+        <rect x="${margin.left}" y="${bandTop}" width="${chartWidth}" height="${Math.max(0, bandBottom - bandTop)}" fill="rgba(255,255,255,0.03)"></rect>
+        <path d="${areaPath}" fill="url(#chart-gradient-${svgId})" opacity="0.6"></path>
+        <path d="${path}" fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+        ${chartPoints.map(p => `<circle cx="${p.x}" cy="${p.y}" r="3" fill="${color}"></circle>`).join("")}
+        <text x="${width - margin.right}" y="${height - margin.bottom + 20}" fill="var(--muted)" font-size="13" font-weight="500" text-anchor="end">${lastLabel || "Now"}</text>
+        <defs>
+          <linearGradient id="chart-gradient-${svgId}" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="${color}" stop-opacity="0.3"></stop>
+            <stop offset="100%" stop-color="${color}" stop-opacity="0"></stop>
+          </linearGradient>
+        </defs>
       `;
-
-      rangeLabel.textContent = `Window ${formatDurationLabel(windowMs)} | Target ${formatNumber(targetMin, digits)} - ${formatNumber(targetMax, digits)} ${unit}`;
+      
+      rangeLabel.textContent = `Target ${formatNumber(targetMin, digits)} - ${formatNumber(targetMax, digits)} ${unit}`;
       latestLabel.textContent = `${formatNumber(lastValue, digits)} ${unit}`;
     }
 
@@ -284,7 +271,10 @@
         ? "Device online and serving live telemetry"
         : "Device offline (showing last known state)";
       document.getElementById("wifiDot").classList.toggle("ok", isOnline);
-      document.getElementById("refreshedAt").textContent = new Date(displayTimeMs).toLocaleString("id-ID", { timeZone: "Asia/Jakarta", day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      const dateObj = new Date(displayTimeMs);
+      const dateStr = dateObj.toLocaleDateString("id-ID", { timeZone: "Asia/Jakarta", day: "2-digit", month: "short", year: "numeric" });
+      const timeStr = dateObj.toLocaleTimeString("id-ID", { timeZone: "Asia/Jakarta", hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      document.getElementById("refreshedAt").innerHTML = `<div>${dateStr}</div><div style="font-size: 0.9em; color: var(--muted); margin-top: 2px;">${timeStr}</div>`;
 
       document.getElementById("ipAddress").textContent = `IP: ${data?.device?.ip_address || "-"}`;
 
@@ -297,6 +287,18 @@
       document.getElementById("ppmMeta").textContent = `Target: ${formatNumber(data?.targets?.ppm_min, 0)} - ${formatNumber(data?.targets?.ppm_max, 0)}`;
       document.getElementById("tempMeta").textContent = `Voltage pH probe: ${formatNumber(data?.sensor?.ph_voltage, 3)} V`;
       document.getElementById("dosingMeta").textContent = `Mode: ${data?.dosing?.display_mode || "-"} | Busy: ${data?.dosing?.busy ? "YES" : "NO"}`;
+      
+      const autoDoseToggle = document.getElementById('autoDoseToggle');
+      const autoDoseStatusText = document.getElementById('autoDoseStatusText');
+      if (data?.dosing && data.dosing.hasOwnProperty('auto_dosing_enabled')) {
+        autoDoseToggle.disabled = false;
+        if (autoDoseStatusText.textContent !== "Updating...") {
+          autoDoseToggle.checked = data.dosing.auto_dosing_enabled;
+          autoDoseStatusText.textContent = data.dosing.auto_dosing_enabled ? "ON (Automated)" : "OFF (Manual)";
+          autoDoseStatusText.style.color = data.dosing.auto_dosing_enabled ? "var(--ok)" : "var(--warn)";
+        }
+      }
+
       if(data?.device?.ota_available) {
         document.getElementById('otaBadge').style.display = 'block';
       } else {
@@ -570,10 +572,170 @@
     window.updateDualSlider = updateDualSlider;
     window.saveTarget = saveTarget;
     window.startOtaUpdate = startOtaUpdate;
+    function requireConfirmation(message, onConfirm, onCancel) {
+      const modal = document.getElementById('confirmModal');
+      const msgEl = document.getElementById('confirmMessage');
+      const yesBtn = document.getElementById('confirmYesBtn');
+      const noBtn = document.getElementById('confirmNoBtn');
+      
+      msgEl.textContent = message;
+      modal.style.display = 'flex';
+      
+      // Clear previous event listeners by replacing elements
+      const newYes = yesBtn.cloneNode(true);
+      const newNo = noBtn.cloneNode(true);
+      yesBtn.parentNode.replaceChild(newYes, yesBtn);
+      noBtn.parentNode.replaceChild(newNo, noBtn);
+      
+      newYes.onclick = () => {
+        modal.style.display = 'none';
+        if (onConfirm) onConfirm();
+      };
+      
+      newNo.onclick = () => {
+        modal.style.display = 'none';
+        if (onCancel) onCancel();
+      };
+    }
+
+    window.toggleAutoDose = async function(checkbox) {
+      if (!db) return;
+      
+      requireConfirmation(
+        checkbox.checked ? "Turn ON Auto Dosing?" : "Turn OFF Auto Dosing?",
+        async () => {
+          // ON CONFIRM
+          const statusText = document.getElementById('autoDoseStatusText');
+          statusText.textContent = "Updating...";
+          statusText.style.color = "var(--muted)";
+          checkbox.disabled = true;
+          
+          try {
+            await set(ref(db, 'hydroponic/commands/dosing_enabled'), checkbox.checked);
+          } catch (error) {
+            statusText.textContent = 'Error updating';
+            statusText.style.color = 'var(--danger)';
+            checkbox.checked = !checkbox.checked; // Revert
+            checkbox.disabled = false;
+          }
+        },
+        () => {
+          // ON CANCEL
+          checkbox.checked = !checkbox.checked; // Revert visually
+        }
+      );
+    };
+    window.triggerManualPump = async function(command, btnElement) {
+      if (!db) return;
+      
+      const pumpName = btnElement.textContent;
+      requireConfirmation(
+        `Are you sure you want to dose ${pumpName} manually for 1 step?`,
+        async () => {
+          const originalText = btnElement.textContent;
+          btnElement.textContent = "Sending...";
+          btnElement.disabled = true;
+          
+          try {
+            await set(ref(db, 'hydroponic/commands/manual_trigger/command'), command);
+            await set(ref(db, 'hydroponic/commands/manual_trigger/pending'), true);
+            
+            btnElement.textContent = "Sent!";
+            setTimeout(() => {
+              btnElement.textContent = originalText;
+              btnElement.disabled = false;
+            }, 2000);
+          } catch (error) {
+            console.error("Manual trigger error:", error);
+            btnElement.textContent = "Failed";
+            setTimeout(() => {
+              btnElement.textContent = originalText;
+              btnElement.disabled = false;
+            }, 2000);
+          }
+        }
+      );
+    };
 
     // Initialize sliders on page load
     updateDualSlider(null, 'ph');
     updateDualSlider(null, 'ppm');
+    
+    // Set dynamic copyright year
+    document.getElementById('copyrightYear').textContent = new Date().getFullYear();
+
+    // Render Plants Table
+    function renderPlantsTable() {
+      const tbody = document.getElementById("plantsTableBody");
+      if (!tbody) return;
+      
+      const searchInput = document.getElementById("plantSearchInput")?.value.toLowerCase() || "";
+      const catFilter = document.getElementById("categoryFilter")?.value || "All";
+      const sortVal = document.getElementById("plantSort")?.value || "name_asc";
+      
+      let filteredData = plantData.filter(plant => {
+        const matchesSearch = plant.name.toLowerCase().includes(searchInput);
+        const matchesCat = catFilter === "All" || plant.category === catFilter;
+        return matchesSearch && matchesCat;
+      });
+      
+      filteredData.sort((a, b) => {
+        if (sortVal === "name_asc") return a.name.localeCompare(b.name);
+        if (sortVal === "name_desc") return b.name.localeCompare(a.name);
+        if (sortVal === "cat_asc") {
+          const catCmp = a.category.localeCompare(b.category);
+          return catCmp !== 0 ? catCmp : a.name.localeCompare(b.name);
+        }
+        return 0;
+      });
+      
+      let html = "";
+      if (filteredData.length === 0) {
+        html = `<tr><td colspan="5" style="text-align: center; color: var(--muted); padding: 24px;">No plants found.</td></tr>`;
+      } else {
+        filteredData.forEach(plant => {
+          html += `
+            <tr>
+              <td data-label="Plant Type">${plant.name}</td>
+              <td data-label="Category">${plant.category}</td>
+              <td data-label="Ideal pH" class="mono">${plant.phMin} - ${plant.phMax}</td>
+              <td data-label="Target PPM" class="mono">${plant.ppmMin} - ${plant.ppmMax}</td>
+              <td data-label="Action" style="text-align: left;">
+                <button class="btn" style="padding: 6px 12px; font-size: 0.8rem; background: var(--accent); box-shadow: none;" onclick="applyPlantTarget(${plant.id})">Apply Target</button>
+              </td>
+            </tr>
+          `;
+        });
+      }
+      tbody.innerHTML = html;
+    }
+    
+    document.getElementById("plantSearchInput")?.addEventListener("input", renderPlantsTable);
+    document.getElementById("categoryFilter")?.addEventListener("change", renderPlantsTable);
+    document.getElementById("plantSort")?.addEventListener("change", renderPlantsTable);
+    
+    window.applyPlantTarget = (id) => {
+      const plant = plantData.find(p => p.id === id);
+      if (!plant) return;
+      
+      requireConfirmation(
+        `Apply target for ${plant.name} (pH: ${plant.phMin}-${plant.phMax}, PPM: ${plant.ppmMin}-${plant.ppmMax})?`,
+        () => {
+          document.getElementById('phMinSlider').value = plant.phMin;
+          document.getElementById('phMaxSlider').value = plant.phMax;
+          document.getElementById('ppmMinSlider').value = plant.ppmMin;
+          document.getElementById('ppmMaxSlider').value = plant.ppmMax;
+          
+          updateDualSlider(document.getElementById('phMinSlider'), 'ph');
+          updateDualSlider(document.getElementById('ppmMinSlider'), 'ppm');
+          
+          window.saveTarget('ph');
+          window.saveTarget('ppm');
+        }
+      );
+    };
+
+    renderPlantsTable();
 
     // Connect to Firebase and listen to changes
     if(db) {
