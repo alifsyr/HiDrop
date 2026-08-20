@@ -4,8 +4,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Dashboard Hydroponic Monitor</title>
+  <title>Hydroponic Command Center</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌱</text></svg>">
   <link rel="stylesheet" href="css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 
 <body>
@@ -17,60 +19,168 @@
             <span id="wifiDot" class="dot"></span>
             <span id="heroStatus">Connecting to device...</span>
           </div>
-          <h1>Dashboard Hydroponic Monitor</h1>
+          <h1>Hydroponic Command Center</h1>
           <p class="subhead">
-            Dashboard live untuk pH, PPM, suhu air, status auto dosing, dan histori singkat aktivitas terakhir dari
-            ESP32.
+            Live monitoring for pH, PPM, temperature, auto-dosing status, and recent activity logs from your ESP32 controller.
           </p>
         </div>
-        <div style="display: flex; gap: 14px; align-items: start;">
-          <button id="otaBellBtn" onclick="openOtaModal()"
-            style="position: relative; background: rgba(255,255,255,0.74); border: 1px solid rgba(19, 52, 43, 0.07); padding: 18px; border-radius: 20px; cursor: pointer; transition: background 0.2s; backdrop-filter: blur(8px);">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
+        
+        <div class="header-actions">
+          <button id="otaBellBtn" class="icon-btn" onclick="openOtaModal()" title="Check Firmware Update">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
               <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
             </svg>
-            <span id="otaBadge"
-              style="display: none; position: absolute; top: 12px; right: 12px; width: 10px; height: 10px; background: #b42318; border-radius: 50%; box-shadow: 0 0 0 3px rgba(255,255,255,0.8);"></span>
+            <span id="otaBadge" style="display: none; position: absolute; top: 10px; right: 10px; width: 10px; height: 10px; background: var(--danger); border-radius: 50%; box-shadow: 0 0 0 3px var(--bg);"></span>
           </button>
-          <div class="stat">
-            <p class="label">Last Refresh</p>
-            <p id="refreshedAt" class="value" style="font-size:1.4rem">Waiting...</p>
-            <div class="meta mono" id="ipAddress">IP: -</div>
+          
+          <div class="stat" style="padding: 12px 16px; width: 170px; text-align: left; flex-shrink: 0;">
+            <p class="label" style="margin-bottom: 2px;">Last Refresh</p>
+            <p id="refreshedAt" class="value" style="font-size: 0.95rem; line-height: 1.3;">Waiting...</p>
+            <div class="meta mono" id="ipAddress" style="margin-top: 4px; font-size: 0.75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">IP: -</div>
           </div>
         </div>
       </div>
 
       <div class="hero-stats">
         <article class="stat">
-          <p class="label">pH Air</p>
+          <p class="label">pH Level</p>
           <p id="phValue" class="value">-</p>
           <div class="meta" id="phMeta">Target: -</div>
         </article>
         <article class="stat">
-          <p class="label">PPM</p>
+          <p class="label">Nutrient (PPM)</p>
           <p id="ppmValue" class="value">-</p>
           <div class="meta" id="ppmMeta">Target: -</div>
         </article>
         <article class="stat">
-          <p class="label">Temperature</p>
+          <p class="label">Water Temp</p>
           <p id="tempValue" class="value">-</p>
-          <div class="meta" id="tempMeta">Water temperature</div>
+          <div class="meta" id="tempMeta">Voltage: -</div>
         </article>
         <article class="stat">
-          <p class="label">Auto Dosing</p>
-          <p id="dosingState" class="value" style="font-size:1.25rem; line-height:1.2">-</p>
+          <p class="label">Auto Dosing State</p>
+          <p id="dosingState" class="value" style="font-size: 1.5rem; line-height: 1.2; padding-top: 8px;">-</p>
           <div class="meta" id="dosingMeta">Mode: -</div>
         </article>
       </div>
     </section>
 
+    <section class="panel">
+      <div class="section-head">
+        <div>
+          <h2>System Controls & Targets</h2>
+          <span class="meta">Manage auto-dosing state and adjust target ranges</span>
+        </div>
+        
+        <div class="toggle-container" style="min-width: 240px;">
+          <div class="toggle-label-wrap">
+            <span class="toggle-title">Auto Dosing</span>
+            <span class="toggle-desc" id="autoDoseStatusText">Fetching...</span>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="autoDoseToggle" onchange="toggleAutoDose(this)" disabled>
+            <span class="slider-toggle"></span>
+          </label>
+        </div>
+      </div>
+      
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px;">
+        <div class="slider-group">
+          <div class="slider-header">
+            <span class="slider-label">pH Target Range</span>
+            <span class="slider-value"><span id="phMinVal">-</span> - <span id="phMaxVal">-</span></span>
+          </div>
+          <div class="range-slider">
+            <div class="range-slider-track"></div>
+            <div class="range-slider-progress" id="phProgress"></div>
+            <input type="range" id="phMinSlider" min="4.0" max="9.0" step="0.1" value="5.8" oninput="updateDualSlider(this, 'ph')" onchange="saveTarget('ph')">
+            <input type="range" id="phMaxSlider" min="4.0" max="9.0" step="0.1" value="6.2" oninput="updateDualSlider(this, 'ph')" onchange="saveTarget('ph')">
+          </div>
+          <div id="phSaveStatus" style="margin-top: 12px; font-size: 0.85rem; color: var(--ok); display: none;">Saved to Cloud!</div>
+        </div>
+        
+        <div class="slider-group">
+          <div class="slider-header">
+            <span class="slider-label">PPM Target Range</span>
+            <span class="slider-value"><span id="ppmMinVal">-</span> - <span id="ppmMaxVal">-</span></span>
+          </div>
+          <div class="range-slider">
+            <div class="range-slider-track"></div>
+            <div class="range-slider-progress" id="ppmProgress"></div>
+            <input type="range" id="ppmMinSlider" min="500" max="4000" step="50" value="600" oninput="updateDualSlider(this, 'ppm')" onchange="saveTarget('ppm')">
+            <input type="range" id="ppmMaxSlider" min="500" max="4000" step="50" value="800" oninput="updateDualSlider(this, 'ppm')" onchange="saveTarget('ppm')">
+          </div>
+          <div id="ppmSaveStatus" style="margin-top: 12px; font-size: 0.85rem; color: var(--ok); display: none;">Saved to Cloud!</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel" style="margin-top: 24px;">
+      <div class="section-head">
+        <div>
+          <h2>Manual Pump Controls</h2>
+          <span class="meta">Force trigger individual pumps for 1 step dose</span>
+        </div>
+      </div>
+      <div class="manual-pump-grid">
+        <button id="btnNutriA" class="btn" style="background: linear-gradient(135deg, #10b981, #059669);" onclick="triggerManualPump('DEV NUTRI A', this)">Nutrient A</button>
+        <button id="btnNutriB" class="btn" style="background: linear-gradient(135deg, #10b981, #059669);" onclick="triggerManualPump('DEV NUTRI B', this)">Nutrient B</button>
+        <button id="btnPhUp" class="btn" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9);" onclick="triggerManualPump('DEV PH UP', this)">pH Up</button>
+        <button id="btnPhDown" class="btn" style="background: linear-gradient(135deg, #f43f5e, #be123c);" onclick="triggerManualPump('DEV PH DOWN', this)">pH Down</button>
+      </div>
+    </section>
+
+    <section class="panel" style="margin-top: 24px;">
+      <div class="section-head" style="margin-bottom: 16px;">
+        <div>
+          <h2>Nutrition Best Practices</h2>
+          <span class="meta">Ideal pH and PPM ranges for 28 hydroponic crops</span>
+        </div>
+      </div>
+      
+      <div style="border: 1px solid var(--panel-border); border-radius: 12px; overflow: hidden;">
+        <div class="table-toolbar" style="background: rgba(0,0,0,0.3); padding: 12px 16px; border-bottom: 1px solid var(--panel-border); display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+          <input type="text" id="plantSearchInput" placeholder="Search plant..." class="control-input" style="flex: 1 1 200px; min-width: 150px;">
+          <select id="categoryFilter" class="control-input" style="flex: 0 1 auto; min-width: 140px;">
+            <option value="All">All Categories</option>
+            <option value="Sayuran">Sayuran</option>
+            <option value="Sayuran Buah">Sayuran Buah</option>
+            <option value="Tanaman Buah">Tanaman Buah</option>
+          </select>
+          <select id="plantSort" class="control-input" style="flex: 0 1 auto; min-width: 160px;">
+            <option value="name_asc">Sort: A-Z</option>
+            <option value="name_desc">Sort: Z-A</option>
+            <option value="cat_asc">Sort: Category</option>
+          </select>
+        </div>
+        
+        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+        <table>
+          <thead style="position: sticky; top: 0; background: #1e293b; z-index: 10;">
+            <tr>
+              <th>Plant Type</th>
+              <th>Category</th>
+              <th>Ideal pH</th>
+              <th>Target PPM</th>
+              <th style="text-align: right;">Action</th>
+            </tr>
+          </thead>
+          <tbody id="plantsTableBody">
+            <!-- Rendered by JS -->
+          </tbody>
+        </table>
+      </div>
+      </div>
+    </section>
+
     <section class="chart-grid">
-      <article class="panel chart-card">
-        <div class="section-head">
-          <h2>pH Trend</h2>
-          <span class="meta">Recent sensor history</span>
+      <article class="panel chart-card" style="margin-top: 0;">
+        <div class="section-head" style="margin-bottom: 16px;">
+          <div>
+            <h2>pH Trend</h2>
+            <span class="meta">Recent sensor history</span>
+          </div>
         </div>
         <div class="chart-frame">
           <svg id="phChart" class="chart-svg" viewBox="0 0 640 240" role="img" aria-label="pH history chart"></svg>
@@ -81,10 +191,12 @@
         </div>
       </article>
 
-      <article class="panel chart-card">
-        <div class="section-head">
-          <h2>PPM Trend</h2>
-          <span class="meta">Recent sensor history</span>
+      <article class="panel chart-card" style="margin-top: 0;">
+        <div class="section-head" style="margin-bottom: 16px;">
+          <div>
+            <h2>PPM Trend</h2>
+            <span class="meta">Recent sensor history</span>
+          </div>
         </div>
         <div class="chart-frame">
           <svg id="ppmChart" class="chart-svg" viewBox="0 0 640 240" role="img" aria-label="PPM history chart"></svg>
@@ -96,95 +208,61 @@
       </article>
     </section>
 
-    <section class="panel" style="margin-top:18px">
-      <div class="section-head">
-        <h2>Target Settings</h2>
-        <span class="meta">Adjust dosing targets</span>
-      </div>
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px;">
-        <div>
-          <div class="slider-group">
-            <div class="slider-header">
-              <span class="slider-label">pH Target Range</span>
-              <span class="slider-value"><span id="phMinVal">-</span> - <span id="phMaxVal">-</span></span>
-            </div>
-            <div class="range-slider">
-              <div class="range-slider-track"></div>
-              <div class="range-slider-progress" id="phProgress"></div>
-              <input type="range" id="phMinSlider" min="4.0" max="9.0" step="0.1" value="5.8"
-                oninput="updateDualSlider(this, 'ph')" onchange="saveTarget('ph')">
-              <input type="range" id="phMaxSlider" min="4.0" max="9.0" step="0.1" value="6.2"
-                oninput="updateDualSlider(this, 'ph')" onchange="saveTarget('ph')">
-            </div>
-            <div id="phSaveStatus" style="margin-top: 8px; font-size: 0.85rem; color: var(--ok); display: none;">Saved!
-            </div>
-          </div>
-        </div>
-        <div>
-          <div class="slider-group">
-            <div class="slider-header">
-              <span class="slider-label">PPM Target Range</span>
-              <span class="slider-value"><span id="ppmMinVal">-</span> - <span id="ppmMaxVal">-</span></span>
-            </div>
-            <div class="range-slider">
-              <div class="range-slider-track"></div>
-              <div class="range-slider-progress" id="ppmProgress"></div>
-              <input type="range" id="ppmMinSlider" min="500" max="4000" step="50" value="600"
-                oninput="updateDualSlider(this, 'ppm')" onchange="saveTarget('ppm')">
-              <input type="range" id="ppmMaxSlider" min="500" max="4000" step="50" value="800"
-                oninput="updateDualSlider(this, 'ppm')" onchange="saveTarget('ppm')">
-            </div>
-            <div id="ppmSaveStatus" style="margin-top: 8px; font-size: 0.85rem; color: var(--ok); display: none;">Saved!
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="panel" style="margin-top:18px">
+    <section class="panel">
       <h2>Recent Dosing Reports</h2>
-      <div id="reportContainer">
-        <p class="empty">Belum ada event dosing yang selesai.</p>
+      <div id="reportContainer" style="margin-top: 16px;">
+        <p class="empty">No completed dosing events yet.</p>
       </div>
     </section>
 
     <!-- OTA Modal -->
-    <div id="otaModal"
-      style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
-      <div class="panel" style="max-width: 420px; width: 90%; position: relative;">
-        <button onclick="closeOtaModal()"
-          style="position: absolute; right: 16px; top: 16px; background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--muted);">&times;</button>
+    <div id="otaModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(8px);">
+      <div class="panel" style="max-width: 420px; width: 90%; position: relative; margin: 0;">
+        <button onclick="closeOtaModal()" class="icon-btn" style="position: absolute; right: 16px; top: 16px; border: none; padding: 8px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"></path></svg>
+        </button>
         <h2>Firmware Update</h2>
-        <p class="subhead" style="margin-bottom: 20px;">Check for the latest updates from GitHub.</p>
+        <p class="subhead" style="margin-bottom: 24px;">Check for the latest updates from GitHub Releases.</p>
 
-        <div style="margin-bottom: 12px;">
-          <span class="label">Current Version:</span>
-          <span class="value" style="font-size: 1.2rem;" id="otaCurrentVer">-</span>
-        </div>
-        <div style="margin-bottom: 24px;">
-          <span class="label">Latest Version:</span>
-          <span class="value" style="font-size: 1.2rem; color: var(--accent);" id="otaLatestVer">-</span>
-        </div>
-
-        <!-- Progress bar (hidden until OTA starts) -->
-        <div id="otaProgressWrap" style="display: none; margin-bottom: 16px;">
-          <div style="background: var(--accent-soft); border-radius: 999px; height: 10px; overflow: hidden;">
-            <div id="otaProgressBar"
-              style="height: 100%; width: 0%; background: var(--accent); border-radius: 999px; transition: width 0.4s ease;">
-            </div>
+        <div style="margin-bottom: 16px; background: rgba(0,0,0,0.2); padding: 16px; border-radius: 16px;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+            <span class="label" style="margin: 0;">Current Version</span>
+            <span class="value" style="font-size: 1.1rem; font-family: var(--mono);" id="otaCurrentVer">-</span>
           </div>
-          <div id="otaProgressPct"
-            style="text-align: center; font-size: 0.85rem; margin-top: 6px; color: var(--muted);">0%</div>
+          <div style="display: flex; justify-content: space-between;">
+            <span class="label" style="margin: 0; color: var(--accent);">Latest Version</span>
+            <span class="value" style="font-size: 1.1rem; font-family: var(--mono); color: var(--accent);" id="otaLatestVer">-</span>
+          </div>
         </div>
 
-        <button id="otaStartBtn" class="btn" style="display: none;" onclick="startOtaUpdate()">Install Update &amp;
-          Restart</button>
-        <div id="otaStatusText" style="margin-top: 12px; font-size: 0.9rem; text-align: center; color: var(--muted);">
+        <div id="otaProgressWrap" style="display: none; margin-bottom: 20px;">
+          <div style="background: rgba(255,255,255,0.1); border-radius: 999px; height: 12px; overflow: hidden; border: 1px solid rgba(255,255,255,0.05);">
+            <div id="otaProgressBar" style="height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent), #818cf8); border-radius: 999px; transition: width 0.4s ease;"></div>
+          </div>
+          <div id="otaProgressPct" style="text-align: center; font-size: 0.9rem; margin-top: 8px; color: var(--muted); font-family: var(--mono);">0%</div>
+        </div>
+
+        <button id="otaStartBtn" class="btn" style="display: none;" onclick="startOtaUpdate()">Install Update &amp; Restart</button>
+        <div id="otaStatusText" style="margin-top: 16px; font-size: 0.95rem; text-align: center; color: var(--muted);"></div>
+      </div>
+    </div>
+    
+    <!-- Confirmation Modal -->
+    <div id="confirmModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1100; align-items: center; justify-content: center; backdrop-filter: blur(8px);">
+      <div class="panel" style="max-width: 360px; width: 90%; margin: 0; text-align: center;">
+        <h2 style="margin-bottom: 12px;">Confirm Action</h2>
+        <p id="confirmMessage" class="subhead" style="margin-bottom: 24px; margin-inline: auto;">Are you sure?</p>
+        <div style="display: flex; gap: 12px;">
+          <button id="confirmNoBtn" class="btn" style="background: rgba(255,255,255,0.1); color: var(--text); box-shadow: none;">Cancel</button>
+          <button id="confirmYesBtn" class="btn" style="background: var(--danger); box-shadow: 0 8px 16px rgba(239, 68, 68, 0.2);">Yes, Proceed</button>
         </div>
       </div>
     </div>
+    
+    <footer style="margin-top: 48px; text-align: center; color: var(--muted); font-size: 0.85rem; padding-top: 24px; border-top: 1px solid var(--panel-border);">
+      &copy; <span id="copyrightYear">2026</span> Hydroponic Command Center. All rights reserved.
+    </footer>
   </main>
-
 
   <script type="module" src="js/main.js"></script>
 </body>

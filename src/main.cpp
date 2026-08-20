@@ -115,6 +115,8 @@ void setup() {
   sheetsLogger.begin();
   firebaseClient.setCommandCallback(
       [](const String &cmd) { return targetRangeManager.handleCommand(cmd); });
+  firebaseClient.setAutoDoseToggleCallback(
+      [](bool enabled) { dosingController.setAutoDosingEnabled(enabled); });
   firebaseClient.setOtaTriggerCallback(
       [](const String &url, const String &version) {
           Serial.printf("[Main] OTA update triggered! Version: %s\n", version.c_str());
@@ -240,6 +242,7 @@ void loop() {
       currentData, targetRangeManager.getRanges(), sensorManager.getMode(),
       sensorManager.isCalibrationMode(), dosingController.getDisplayMode(),
       dosingController.isBusy(), dosingController.getStateLabel(),
+      dosingController.isAutoDosingEnabled(),
       wifiConnected, timeValid ? &localTimeInfo : nullptr, timeValid);
   firebaseClient.handleClient();
 

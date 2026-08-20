@@ -21,6 +21,9 @@ public:
         const TargetRanges &targetRanges
     );
 
+    void setAutoDosingEnabled(bool enabled);
+    bool isAutoDosingEnabled() const;
+
     // Dev mode: manually trigger a single dose
     bool triggerManualDose(const String &cmd, const SensorData &data,
                            const struct tm *localTime, bool timeValid);
@@ -35,6 +38,8 @@ private:
     enum class Action {
         NONE,
         DOSE_NUTRIENTS,
+        DOSE_NUTRI_A,
+        DOSE_NUTRI_B,
         DOSE_PH_DOWN,
         DOSE_PH_UP,
         MANUAL_DILUTION_REQUIRED
@@ -43,6 +48,8 @@ private:
     enum class State {
         IDLE,
         DOSING_NUTRIENTS,
+        DOSING_NUTRI_A,
+        DOSING_NUTRI_B,
         DOSING_PH_DOWN,
         DOSING_PH_UP,
         WAITING_RECHECK
@@ -60,6 +67,7 @@ private:
     unsigned long _stateStartedMs;
     uint8_t _nutrientCycles;
     uint8_t _phCycles;
+    bool _autoDosingEnabled;
 
     Action chooseAction(const SensorData &data, const TargetRanges &targetRanges) const;
     unsigned long doseDurationMs(float ml, float flowMlPerSecond) const;
